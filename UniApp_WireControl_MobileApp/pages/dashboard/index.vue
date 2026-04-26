@@ -152,8 +152,20 @@
                   <text class="info-value">{{ localControlActive ? '是' : '否' }}</text>
                 </view>
                 <view class="info-row">
-                  <text class="info-label">车辆运动锁</text>
+                  <text class="info-label">服务锁判定</text>
                   <text class="info-value">{{ vehicleMoving ? '运动中' : '静止' }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">命令运动状态</text>
+                  <text class="info-value">{{ vehicleMovingCommand ? '目标命令仍在驱动' : '目标命令已静止' }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">实际运动状态</text>
+                  <text class="info-value">{{ actualMotionText }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">驱动反馈状态</text>
+                  <text class="info-value">{{ driveFeedbackValid ? '已接入真实速度回读' : '暂无真实速度回读' }}</text>
                 </view>
                 <view class="info-row">
                   <text class="info-label">缓停状态</text>
@@ -201,6 +213,16 @@
                   <text class="metric-label">右轮目标</text>
                   <text class="metric-value">{{ telemetryStatus ? telemetryStatus.rightTargetRpm : 0 }}</text>
                   <text class="metric-unit">rpm</text>
+                </view>
+                <view class="metric-card">
+                  <text class="metric-label">左轮实际</text>
+                  <text class="metric-value">{{ telemetryStatus ? telemetryStatus.leftActualRpm : 0 }}</text>
+                  <text class="metric-unit">{{ telemetryStatus && telemetryStatus.leftActualRpmValid ? 'rpm' : '--' }}</text>
+                </view>
+                <view class="metric-card">
+                  <text class="metric-label">右轮实际</text>
+                  <text class="metric-value">{{ telemetryStatus ? telemetryStatus.rightActualRpm : 0 }}</text>
+                  <text class="metric-unit">{{ telemetryStatus && telemetryStatus.rightActualRpmValid ? 'rpm' : '--' }}</text>
                 </view>
                 <view class="metric-card">
                   <text class="metric-label">转向目标</text>
@@ -659,6 +681,22 @@ export default {
     vehicleMoving() {
       return !!(this.telemetryStatus && this.telemetryStatus.vehicleMoving);
     },
+    vehicleMovingCommand() {
+      return !!(this.telemetryStatus && this.telemetryStatus.vehicleMovingCommand);
+    },
+    vehicleMovingActual() {
+      return !!(this.telemetryStatus && this.telemetryStatus.vehicleMovingActual);
+    },
+    driveFeedbackValid() {
+      return !!(this.telemetryStatus && this.telemetryStatus.driveFeedbackValid);
+    },
+    actualMotionText() {
+      if (!this.driveFeedbackValid) {
+        return '未建立真实速度回读';
+      }
+
+      return this.vehicleMovingActual ? '车轮仍在真实转动' : '真实反馈已静止';
+    },
     softStopActive() {
       return !!(this.telemetryStatus && this.telemetryStatus.softStopActive);
     },
@@ -1032,6 +1070,16 @@ export default {
       this.stopCommandBusy = false;
 
       if (!ok) {
+        if (this.bridgeState.lastJsonAt >= requestAt &&
+            this.bridgeState.lastJson &&
+            this.bridgeState.lastJson.error === 'vehicle_moving_actual') {
+          uni.showToast({
+            title: '车辆仍有真实转速，请先停稳',
+            icon: 'none'
+          });
+          return false;
+        }
+
         uni.showToast({
           title: '停止命令下发失败',
           icon: 'none'
@@ -1413,6 +1461,14 @@ export default {
       if (this.hardwareEstopActive && !this.emergencyStopActive) {
         uni.showToast({
           title: '硬件急停已触发',
+          icon: 'none'
+        });
+        return;
+      }
+
+      if (this.emergencyStopActive && this.driveFeedbackValid && this.vehicleMovingActual) {
+        uni.showToast({
+          title: '车辆仍有真实转速，请先停稳',
           icon: 'none'
         });
         return;
