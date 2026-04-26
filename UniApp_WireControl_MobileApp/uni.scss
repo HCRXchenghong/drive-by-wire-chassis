@@ -1,0 +1,30 @@
+$page-bg: #f2f6fc;
+$panel-bg: #ffffff;
+$panel-soft: #f5f7fa;
+$border: #ebeef5;
+$border-strong: #dcdfe6;
+$text-main: #303133;
+$text-normal: #606266;
+$text-light: #909399;
+$text-placeholder: #c0c4cc;
+$primary: #409eff;
+$success: #67c23a;
+$warning: #e6a23c;
+$danger: #f56c6c;
+
+:root,
+page {
+  --page-bg: #{$page-bg};
+  --panel-bg: #{$panel-bg};
+  --panel-soft: #{$panel-soft};
+  --border: #{$border};
+  --border-strong: #{$border-strong};
+  --text-main: #{$text-main};
+  --text-normal: #{$text-normal};
+  --text-light: #{$text-light};
+  --text-placeholder: #{$text-placeholder};
+  --primary: #{$primary};
+  --success: #{$success};
+  --warning: #{$warning};
+  --danger: #{$danger};
+}

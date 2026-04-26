@@ -1,0 +1,95 @@
+{
+  "easycom": {
+    "autoscan": true
+  },
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false,
+        "backgroundColor": "#F2F6FC",
+        "app-plus": {
+          "titleNView": false,
+          "statusbar": {
+            "background": "#F2F6FC",
+            "style": "dark"
+          }
+        }
+      }
+    },
+    {
+      "path": "pages/pairing/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false,
+        "backgroundColor": "#F2F6FC",
+        "app-plus": {
+          "titleNView": false,
+          "statusbar": {
+            "background": "#F2F6FC",
+            "style": "dark"
+          }
+        }
+      }
+    },
+    {
+      "path": "pages/connecting/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false,
+        "backgroundColor": "#F2F6FC",
+        "app-plus": {
+          "titleNView": false,
+          "statusbar": {
+            "background": "#F2F6FC",
+            "style": "dark"
+          }
+        }
+      }
+    },
+    {
+      "path": "pages/dashboard/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false,
+        "backgroundColor": "#F2F6FC",
+        "app-plus": {
+          "titleNView": false,
+          "statusbar": {
+            "background": "#F2F6FC",
+            "style": "dark"
+          }
+        }
+      }
+    },
+    {
+      "path": "pages/calibration/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false,
+        "backgroundColor": "#F2F6FC",
+        "app-plus": {
+          "titleNView": false,
+          "statusbar": {
+            "background": "#F2F6FC",
+            "style": "dark"
+          }
+        }
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#F2F6FC",
+    "backgroundTextStyle": "dark",
+    "pageOrientation": "portrait",
+    "app-plus": {
+      "titleNView": false,
+      "statusbar": {
+        "background": "#F2F6FC",
+        "style": "dark"
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+../Src/usb_cdc_shell.c:18:6:usb_cdc_shell_init	4	static
+../Src/usb_cdc_shell.c:26:6:usb_cdc_shell_feed_bytes	24	static
+../Src/usb_cdc_shell.c:64:6:usb_cdc_shell_get_line	24	static
+../Src/usb_cdc_shell.c:85:6:usb_cdc_shell_write	32	static
+../Src/usb_cdc_shell.c:115:6:usb_cdc_shell_printf	784	static

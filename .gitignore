@@ -1,1 +1,5 @@
-_ref_wire_control/
+开发环境/
+UniApp_WireControl_MobileApp/unpackage/
+UniApp_WireControl_MobileApp_backup_*/
+_tmp_*
+*.log

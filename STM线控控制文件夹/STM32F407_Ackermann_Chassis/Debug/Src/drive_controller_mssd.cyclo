@@ -1,0 +1,7 @@
+../Src/drive_controller_mssd.c:5:13:mssd_build_write32	1
+../Src/drive_controller_mssd.c:22:13:mssd_build_write16	1
+../Src/drive_controller_mssd.c:36:6:mssd_drive_controller_bind	1
+../Src/drive_controller_mssd.c:42:6:mssd_drive_controller_set_wheel_rpm	4
+../Src/drive_controller_mssd.c:63:6:mssd_drive_controller_set_stop_mode	4
+../Src/drive_controller_mssd.c:86:6:mssd_drive_controller_apply_stop_mode	1
+../Src/drive_controller_mssd.c:91:6:mssd_drive_controller_stop	2

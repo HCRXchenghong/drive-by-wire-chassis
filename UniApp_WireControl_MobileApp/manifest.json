@@ -1,0 +1,43 @@
+{
+  "name": "线控底盘终端",
+  "appid": "__UNI__WIRECONTROL_MOBILE_APP",
+  "description": "EWM22 + STM32F407 线控底盘手机控制终端",
+  "versionName": "1.0.0",
+  "versionCode": 100,
+  "vueVersion": "2",
+  "transformPx": false,
+  "app-plus": {
+    "splashscreen": {
+      "alwaysShowBeforeRender": false,
+      "autoclose": true,
+      "waiting": false,
+      "delay": 0
+    },
+    "statusbar": {
+      "immersed": "supportedDevice",
+      "style": "dark",
+      "background": "#F2F6FC"
+    },
+    "usingComponents": true,
+    "compatible": {
+      "ignoreVersion": true
+    },
+    "distribute": {
+      "android": {
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH_ADMIN\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH_SCAN\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH_ADVERTISE\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>",
+          "<uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\"/>"
+        ]
+      }
+    }
+  }
+}

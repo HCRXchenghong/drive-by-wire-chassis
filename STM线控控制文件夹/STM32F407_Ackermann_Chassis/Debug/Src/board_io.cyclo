@@ -1,0 +1,7 @@
+../Src/board_io.c:7:13:board_io_update_gear	1
+../Src/board_io.c:13:13:board_io_update_hardware_estop	1
+../Src/board_io.c:19:13:board_io_update_adc	5
+../Src/board_io.c:48:6:board_io_init	1
+../Src/board_io.c:59:6:board_io_process	2
+../Src/board_io.c:74:25:board_io_get	1
+../Src/board_io.c:79:13:board_io_gear_name	2

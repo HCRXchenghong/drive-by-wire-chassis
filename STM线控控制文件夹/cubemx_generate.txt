@@ -1,0 +1,9 @@
+config load "C:\Users\HCRXc\Desktop\线控底盘\STM线控控制文件夹\STM32F407.ioc"
+project toolchain "STM32CubeIDE"
+project name STM32F407_Ackermann_Chassis
+project path "C:\Users\HCRXc\Desktop\线控底盘\STM线控控制文件夹"
+project couplefilesbyip 0
+SetStructure Basic
+SetCopyLibrary "copy all"
+project generate
+exit

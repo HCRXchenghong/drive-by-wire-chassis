@@ -1,0 +1,32 @@
+Vehicle side current radio
+- Keep the current F407-side radio settings consistent with your existing project.
+- If the vehicle side is still using EWM22 LoRa mode:
+  AT+HMODE=0
+  AT+UART=7,0
+  AT+NETID=7
+  AT+CHANNEL=23
+  AT+KEY=12345
+  AT+TRANS=0
+  AT+HMODE=1
+
+Nano side E22-T radio
+- Enter configuration mode by hardware:
+  M1=1
+  M0=0
+- Open serial at 9600 8N1
+- Send:
+  AT+ADDR=1
+  AT+NETID=7
+  AT+CHANNEL=23
+  AT+KEY=12345
+  AT+UART=3,0
+  AT+TRANS=0
+- Return to transparent mode by hardware:
+  M1=0
+  M0=0
+
+Notes
+- E22-T config mode is fixed at 9600 8N1.
+- Nano runtime stays at 9600 8N1 for SoftwareSerial stability.
+- Both ends must share CHANNEL, NETID, KEY and transparent transmission mode.
+- If your E22-T is a 30dBm model, use an external high-current supply.

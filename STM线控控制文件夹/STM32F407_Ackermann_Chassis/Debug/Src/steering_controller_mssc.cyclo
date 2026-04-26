@@ -1,0 +1,11 @@
+../Src/steering_controller_mssc.c:9:13:mssc_build_write16	1
+../Src/steering_controller_mssc.c:24:13:mssc_build_read16	1
+../Src/steering_controller_mssc.c:38:13:mssc_send_write16	1
+../Src/steering_controller_mssc.c:46:13:mssc_send_read16	1
+../Src/steering_controller_mssc.c:54:13:mssc_consume_feedback_frame	10
+../Src/steering_controller_mssc.c:105:6:mssc_steering_controller_bind	1
+../Src/steering_controller_mssc.c:123:6:mssc_steering_controller_prepare_for_can_control	4
+../Src/steering_controller_mssc.c:138:6:mssc_steering_controller_set_speed_rpm	3
+../Src/steering_controller_mssc.c:153:6:mssc_steering_controller_stop	4
+../Src/steering_controller_mssc.c:168:6:mssc_steering_controller_feedback_process	10
+../Src/steering_controller_mssc.c:208:6:mssc_steering_controller_get_position_raw	5
