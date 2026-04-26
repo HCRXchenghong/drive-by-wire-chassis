@@ -11,6 +11,8 @@ export const DEFAULT_APP_CONFIG = {
   rearTrackMm: 1260,
   steerCanNodeId: 1,
   handwheelCanNodeId: 2,
+  leftDriveInverted: false,
+  rightDriveInverted: false,
   hasLinearSteering: false,
   pedalConfig: 'brake_throttle'
 };
@@ -132,6 +134,8 @@ export function createSetConfigCommand(config) {
     rear_track_mm: Math.max(100, Math.round(safeNumber(safe.rearTrackMm, DEFAULT_APP_CONFIG.rearTrackMm))),
     steer_can_node_id: clamp(Math.round(safeNumber(safe.steerCanNodeId, DEFAULT_APP_CONFIG.steerCanNodeId)), 1, 0x7FF),
     handwheel_can_node_id: clamp(Math.round(safeNumber(safe.handwheelCanNodeId, DEFAULT_APP_CONFIG.handwheelCanNodeId)), 1, 0x7FF),
+    left_drive_inverted: !!safe.leftDriveInverted,
+    right_drive_inverted: !!safe.rightDriveInverted,
     linear_steering_enabled: !!safe.hasLinearSteering,
     pedal_config: String(safe.pedalConfig || DEFAULT_APP_CONFIG.pedalConfig).toUpperCase()
   };
@@ -223,6 +227,8 @@ export function normalizeConfigPayload(payload) {
     rearTrackMm: Math.round(safeNumber(source.rear_track_mm || source.rt, DEFAULT_APP_CONFIG.rearTrackMm)),
     steerCanNodeId: Math.round(safeNumber(source.steer_can_node_id || source.sid, DEFAULT_APP_CONFIG.steerCanNodeId)),
     handwheelCanNodeId: Math.round(safeNumber(source.handwheel_can_node_id || source.hid, DEFAULT_APP_CONFIG.handwheelCanNodeId)),
+    leftDriveInverted: safeBool(source.left_drive_inverted || source.ldi, DEFAULT_APP_CONFIG.leftDriveInverted),
+    rightDriveInverted: safeBool(source.right_drive_inverted || source.rdi, DEFAULT_APP_CONFIG.rightDriveInverted),
     hasLinearSteering: safeBool(source.linear_steering_enabled || source.ls, DEFAULT_APP_CONFIG.hasLinearSteering),
     pedalConfig: String(source.pedal_config || DEFAULT_APP_CONFIG.pedalConfig).toLowerCase() === 'estop_throttle'
       ? 'estop_throttle'
@@ -297,6 +303,8 @@ export function normalizeStatusPayload(payload) {
     steerCanReady: safeBool(source.steer_can_ready || source.sc, false),
     steerCanNodeId: Math.round(safeNumber(source.steer_can_node_id || source.sid, DEFAULT_APP_CONFIG.steerCanNodeId)),
     handwheelCanNodeId: Math.round(safeNumber(source.handwheel_can_node_id || source.hid, DEFAULT_APP_CONFIG.handwheelCanNodeId)),
+    leftDriveInverted: safeBool(source.left_drive_inverted || source.ldi, DEFAULT_APP_CONFIG.leftDriveInverted),
+    rightDriveInverted: safeBool(source.right_drive_inverted || source.rdi, DEFAULT_APP_CONFIG.rightDriveInverted),
     bleConnected: safeBool(source.ble_connected, false),
     remoteSource: String(source.remote_source || source.src || 'NONE').toUpperCase()
   };

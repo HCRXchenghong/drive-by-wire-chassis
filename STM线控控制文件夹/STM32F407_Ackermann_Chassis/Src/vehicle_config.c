@@ -67,6 +67,8 @@ static void vehicle_config_set_defaults(vehicle_config_t *config)
   config->steering_controller_type = (uint8_t)STEERING_CONTROLLER_MSSC;
   config->linear_steering_enabled = 0U;
   config->pedal_config = (uint8_t)PEDAL_CONFIG_BRAKE_THROTTLE;
+  config->left_drive_inverted = 0U;
+  config->right_drive_inverted = 0U;
   config->steer_can_node_id = 1U;
   config->handwheel_can_node_id = 2U;
   config->throttle_raw_min = 240U;
@@ -183,12 +185,14 @@ static void vehicle_config_sanitize(vehicle_config_t *config)
     config->pedal_config = (uint8_t)PEDAL_CONFIG_BRAKE_THROTTLE;
   }
 
+  config->left_drive_inverted = config->left_drive_inverted ? 1U : 0U;
+  config->right_drive_inverted = config->right_drive_inverted ? 1U : 0U;
+
   vehicle_config_fix_can_node_id(&config->steer_can_node_id, 1U);
   vehicle_config_fix_can_node_id(&config->handwheel_can_node_id, 2U);
   vehicle_config_fix_u16_range(&config->throttle_raw_min, &config->throttle_raw_max);
   vehicle_config_fix_u16_range(&config->brake_raw_min, &config->brake_raw_max);
 
-  memset(config->reserved0, 0, sizeof(config->reserved0));
   config->version = VEHICLE_CONFIG_VERSION;
 }
 

@@ -27,7 +27,7 @@
 - `v1.0.0`
   - 第一版完整可用基线。
 - `v1.0.1`
-  - 加入 `MSSD` 真实速度回读，以及“命令运动状态 / 实际运动状态”双状态。
+  - 加入 `MSSD` 速度回读状态链路、“命令运动状态 / 实际运动状态”双状态、App 侧驱动轮方向即时校正，以及双驱动轮离线反馈联调脚本。
 
 在 `Gitee` 上可以直接按标签下载对应版本源码包，每个标签都可以单独归档和回滚。
 
@@ -48,7 +48,7 @@
 - `项目资料`
   - 旧版 IOC、设计说明等仍可参考的资料。
 - `调试脚本`
-  - 早期单独测驱动轮控制器、转向控制器的脚本，保留作离线排障工具。
+  - 保留驱动轮控制器、转向控制器的离线联调脚本；其中 `mssd_dual_wheel_can.ps1` 已补齐“目标转速下发 + 实际速度回读 + 单轮/双轮顺序测试”能力。
 
 当前已经明确不再依赖的内容，应当视为历史残留，不作为主链路的一部分：
 
@@ -116,10 +116,19 @@
 
 必须诚实说明的一点：
 
-- 当前“车辆正在运动”这件事，在固件里是按“最近一段时间内是否持续下发了非零运动目标”来判定的。
-- 也就是说，这个运动锁目前是“命令状态推断”，不是“读取驱动轮真实编码器车速”的严格闭环运动判定。
-- 原因是当前工程里还没有把 `MSSD-60EHB_2D` 的真实车轮转速反馈完整回读并纳入运动判定。
-- 因此它已经足以保护“运动中不允许保存和矫正”，但不能把它描述成“绝对真实的车速测量”。
+- 从 `v1.0.1` 开始，固件已经把运动状态拆成“命令状态”和“实际状态”两层：
+  - `vehicle_moving_command`
+    - 用于表达最近是否仍有非零驱动目标命令。
+  - `vehicle_moving_actual`
+    - 用于表达 `MSSD-60EHB_2D` 真实速度回读是否显示车轮仍在转动。
+- 当前兼容字段 `vehicle_moving` 不再单纯等于命令状态：
+  - 有真实速度反馈时，优先采用 `vehicle_moving_actual`。
+  - 没有真实速度反馈时，回退到 `vehicle_moving_command`。
+- 因此，现在的运动锁已经不是纯命令推断，而是“实际反馈优先、命令状态兜底”的双状态策略。
+- 仍需如实说明：
+  - 右轮实际速度寄存器 `0x09/0x0A` 来自手册明确说明。
+  - 左轮实际速度寄存器已按 2026-04-27 的 USB-CAN 实测结果确认为 `0x14/0x15`。
+  - 2026-04-27 这次在本机通过 `COM9` 的 USB-CAN 稳定重测，已经再次确认“目标转速下发 -> 车轮实际转动”和“右轮 `0x09/0x0A` / 左轮 `0x14/0x15` 实际速度回读”两条链路都可用；若后续系统重新枚举串口号，调试命令里的 `-Port` 需要按实际口位替换。
 
 ---
 
@@ -131,6 +140,7 @@
 - 角色：双驱动轮控制器
 - 当前实现能力：
   - 左右轮目标转速下发
+  - 左右轮实际转速寄存器轮询回读
   - 普通停止
   - 自由滑行停止
   - 紧急停止
@@ -139,6 +149,40 @@
 
 - `STM线控控制文件夹/STM32F407_Ackermann_Chassis/Inc/drive_controller_mssd.h`
 - `STM线控控制文件夹/STM32F407_Ackermann_Chassis/Src/drive_controller_mssd.c`
+
+#### 4.1.1 驱动轮离线联调脚本
+
+当前保留的双驱动轮离线联调脚本为：
+
+- `调试脚本/mssd_dual_wheel_can.ps1`
+
+当前脚本支持：
+
+- 目标转速下发
+- 普通停机 / 可选急停
+- 实时轮询速度回读寄存器 `0x09/0x0A/0x14/0x15`
+- “右轮单跑 / 左轮单跑 / 双轮同时跑”顺序测试
+- “右轮正反 / 左轮正反”方向检查模式，便于现场判断物理前进方向是否接反
+- 停机后再次读取反馈，确认反馈是否同步归零
+- 当当前 USB-CAN 路径没有收到任何回包帧时，脚本会明确提示“本轮仅验证了命令发送，不代表真实速度回读已打通”
+
+推荐现场命令：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 -Port COM9 -NodeId 1 -RightRpm 500 -LeftRpm -500 -DurationSeconds 2 -SequenceTest -ReadFeedback -Run
+```
+
+如果当前最关心的是“正号和负号到底哪个才是物理前进方向”，推荐直接运行方向检查模式：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 -Port COM9 -NodeId 1 -RightRpm 200 -LeftRpm 200 -DurationSeconds 1.2 -DirectionCheck -ReadFeedback -Run
+```
+
+如果只是先确保驱动轮彻底停下，可以用：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 -Port COM9 -NodeId 1 -StopOnly -EmergencyStopOnStop -Run
+```
 
 ### 4.2 机械转向控制器
 
@@ -196,6 +240,8 @@
 - `drive_axle`
   - `FWD`
   - `RWD`
+- `left_drive_inverted`
+- `right_drive_inverted`
 - `linear_steering_enabled`
 - `pedal_config`
   - `BRAKE_THROTTLE`
@@ -1134,7 +1180,7 @@ App 现在会在以下场景弹窗：
 2. `vehicle_moving_actual`
    - 依据 `MSSD` 真实速度回读。
    - 当前已经接入右轮实时速度寄存器 `0x09/0x0A`。
-   - 左轮按双通道连续寄存器方式接入 `0x0B/0x0C`。
+   - 左轮实际速度按实测确认寄存器 `0x14/0x15` 接入。
    - 实际速度回读有效时，它优先代表“车是不是还在真实转动”。
 3. `vehicle_moving`
    - 兼容旧逻辑的服务锁字段。

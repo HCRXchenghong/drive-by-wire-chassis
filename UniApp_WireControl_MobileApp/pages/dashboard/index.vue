@@ -60,6 +60,14 @@
                   <text class="info-value">{{ formatDriveAxle(appConfig.driveAxle) }}</text>
                 </view>
                 <view class="info-row">
+                  <text class="info-label">左轮前进方向</text>
+                  <text class="info-value">{{ formatDriveDirection(appConfig.leftDriveInverted) }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">右轮前进方向</text>
+                  <text class="info-value">{{ formatDriveDirection(appConfig.rightDriveInverted) }}</text>
+                </view>
+                <view class="info-row">
                   <text class="info-label">机械转向 CAN ID</text>
                   <text class="info-value">{{ appConfig.steerCanNodeId || 1 }}</text>
                 </view>
@@ -193,6 +201,14 @@
                     {{ linearSteeringSupported ? (linearSteeringState.detected ? '已检测到真实回包' : '协议在线，等待设备回包') : '固件未接入' }}
                   </text>
                 </view>
+                <view class="info-row">
+                  <text class="info-label">左轮前进方向</text>
+                  <text class="info-value">{{ formatDriveDirection(telemetryStatus ? telemetryStatus.leftDriveInverted : appConfig.leftDriveInverted) }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">右轮前进方向</text>
+                  <text class="info-value">{{ formatDriveDirection(telemetryStatus ? telemetryStatus.rightDriveInverted : appConfig.rightDriveInverted) }}</text>
+                </view>
               </view>
             </view>
           </view>
@@ -266,6 +282,40 @@
                 <view class="info-row">
                   <text class="info-label">反馈时延</text>
                   <text class="info-value">{{ telemetryStatus && telemetryStatus.steeringFeedbackValid ? `${telemetryStatus.steeringFeedbackAgeMs} ms` : '--' }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view class="panel-card">
+            <view class="card-head">
+              <text class="card-head-title">驱动轮方向调试</text>
+            </view>
+
+            <view class="panel-body form-stack">
+              <view class="status-inline" :class="vehicleMoving ? 'status-inline-warn' : 'status-inline-normal'">
+                <text class="status-inline-text">
+                  {{ vehicleMoving ? '车辆正在运动，方向矫正已锁定。请先停车后再调转。' : '这里修改的是 F407 内部真实方向参数，会同时影响驱动轮目标下发和实际速度回读符号。' }}
+                </text>
+              </view>
+
+              <view class="direction-row">
+                <view class="direction-copy">
+                  <text class="switch-title">左驱动轮前进方向</text>
+                  <text class="switch-desc">当前状态：{{ formatDriveDirection(draftConfig.leftDriveInverted) }}</text>
+                </view>
+                <view class="ghost-button direction-button" @tap="toggleDriveDirection('left')">
+                  <text class="ghost-button-text ghost-button-text-blue">调转左轮方向</text>
+                </view>
+              </view>
+
+              <view class="direction-row">
+                <view class="direction-copy">
+                  <text class="switch-title">右驱动轮前进方向</text>
+                  <text class="switch-desc">当前状态：{{ formatDriveDirection(draftConfig.rightDriveInverted) }}</text>
+                </view>
+                <view class="ghost-button direction-button" @tap="toggleDriveDirection('right')">
+                  <text class="ghost-button-text ghost-button-text-blue">调转右轮方向</text>
                 </view>
               </view>
             </view>
@@ -638,6 +688,8 @@ export default {
         rearTrackMm: '1260',
         steerCanNodeId: '1',
         handwheelCanNodeId: '2',
+        leftDriveInverted: false,
+        rightDriveInverted: false,
         hasLinearSteering: false,
         pedalConfig: 'brake_throttle'
       }
@@ -863,6 +915,8 @@ export default {
         rearTrackMm: String(config.rearTrackMm || 1260),
         steerCanNodeId: String(config.steerCanNodeId || 1),
         handwheelCanNodeId: String(config.handwheelCanNodeId || 2),
+        leftDriveInverted: !!config.leftDriveInverted,
+        rightDriveInverted: !!config.rightDriveInverted,
         hasLinearSteering: !!config.hasLinearSteering,
         pedalConfig: config.pedalConfig || 'brake_throttle'
       };
@@ -876,6 +930,8 @@ export default {
         rearTrackMm: clamp(Number(this.draftConfig.rearTrackMm || 0), 100, 10000),
         steerCanNodeId: clamp(Number(this.draftConfig.steerCanNodeId || 0), 1, 0x7FF),
         handwheelCanNodeId: clamp(Number(this.draftConfig.handwheelCanNodeId || 0), 1, 0x7FF),
+        leftDriveInverted: !!this.draftConfig.leftDriveInverted,
+        rightDriveInverted: !!this.draftConfig.rightDriveInverted,
         hasLinearSteering: !!this.draftConfig.hasLinearSteering && this.linearSteeringSupported,
         pedalConfig: this.draftConfig.pedalConfig || 'brake_throttle'
       };
@@ -1093,16 +1149,11 @@ export default {
       }
       return true;
     },
-    async saveConfig() {
+    async saveConfigPayload(payload, successTitle = '配置已下发') {
       if (this.savingConfig) {
-        return;
+        return false;
       }
 
-      if (!this.ensureVehicleStopped()) {
-        return;
-      }
-
-      const payload = this.buildDraftConfigPayload();
       this.savingConfig = true;
 
       sendJsonCommand(createSetConfigCommand(payload), {
@@ -1127,29 +1178,67 @@ export default {
           title: '配置保存超时',
           icon: 'none'
         });
-        return;
+        return false;
       }
 
       if (this.bridgeState.saveResult && this.bridgeState.saveResult.ok) {
         updateAppConfig(payload);
         persistConnectedProfile(this.bridgeState);
+        this.syncDraftConfig();
         this.requestSnapshot();
         uni.showToast({
-          title: '配置已下发',
+          title: successTitle,
           icon: 'success'
         });
-        return;
+        return true;
       }
 
       if (this.bridgeState.saveResult && this.bridgeState.saveResult.error === 'vehicle_moving') {
         this.showVehicleMovingModal();
-        return;
+        return false;
       }
 
       uni.showToast({
         title: '配置保存失败',
         icon: 'none'
       });
+      return false;
+    },
+    async saveConfig() {
+      if (this.savingConfig) {
+        return;
+      }
+
+      if (!this.ensureVehicleStopped()) {
+        return;
+      }
+
+      const payload = this.buildDraftConfigPayload();
+      await this.saveConfigPayload(payload, '配置已下发');
+    },
+    async toggleDriveDirection(wheel) {
+      if (!this.ensureVehicleStopped()) {
+        return;
+      }
+
+      const targetWheel = String(wheel || '').toLowerCase() === 'right' ? 'right' : 'left';
+      const flagKey = targetWheel === 'right' ? 'rightDriveInverted' : 'leftDriveInverted';
+      const previousValue = !!this.draftConfig[flagKey];
+      const nextValue = !previousValue;
+      const nextDraft = {
+        ...this.draftConfig,
+        [flagKey]: nextValue
+      };
+      const title = targetWheel === 'right' ? '右轮方向已更新' : '左轮方向已更新';
+
+      this.draftConfig = nextDraft;
+      const ok = await this.saveConfigPayload(this.buildDraftConfigPayload(), title);
+      if (!ok) {
+        this.draftConfig = {
+          ...this.draftConfig,
+          [flagKey]: previousValue
+        };
+      }
     },
     async toggleLinearSteering() {
       if (!this.ensureVehicleStopped()) {
@@ -1503,6 +1592,9 @@ export default {
     },
     formatDriveAxle(value) {
       return String(value || '').toLowerCase() === 'fwd' ? '前驱' : '后驱';
+    },
+    formatDriveDirection(inverted) {
+      return inverted ? '反向已矫正' : '正向';
     },
     formatPedalConfig(value) {
       return String(value || '').toLowerCase() === 'estop_throttle'
@@ -2144,6 +2236,23 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.direction-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.direction-copy {
+  flex: 1;
+}
+
+.direction-button {
+  min-width: 132px;
+  padding: 0 14px;
+  box-sizing: border-box;
 }
 
 .switch-copy {

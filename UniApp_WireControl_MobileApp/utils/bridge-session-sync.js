@@ -19,6 +19,8 @@ export function syncSessionFromBridgeState(bridgeState) {
       driveAxle: state.chassisStatus.driveAxle,
       steerCanNodeId: state.chassisStatus.steerCanNodeId,
       handwheelCanNodeId: state.chassisStatus.handwheelCanNodeId,
+      leftDriveInverted: !!state.chassisStatus.leftDriveInverted,
+      rightDriveInverted: !!state.chassisStatus.rightDriveInverted,
       hasLinearSteering: !!state.chassisStatus.linearSteeringEnabled
     });
 
@@ -33,6 +35,8 @@ export function syncSessionFromBridgeState(bridgeState) {
     updateAppConfig({
       steerCanNodeId: state.statusData.steerCanNodeId,
       handwheelCanNodeId: state.statusData.handwheelCanNodeId,
+      leftDriveInverted: !!state.statusData.leftDriveInverted,
+      rightDriveInverted: !!state.statusData.rightDriveInverted,
       hasLinearSteering: !!state.statusData.linearSteeringEnabled
     });
 

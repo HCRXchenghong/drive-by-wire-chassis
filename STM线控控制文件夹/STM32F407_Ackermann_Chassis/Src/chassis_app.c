@@ -487,6 +487,40 @@ static bool int32_abs_exceeds(int32_t value, int32_t threshold)
   return (value > threshold) || (value < -threshold);
 }
 
+static int32_t drive_direction_apply_output_rpm(int32_t logical_rpm, bool inverted)
+{
+  return inverted ? -logical_rpm : logical_rpm;
+}
+
+static int32_t drive_direction_normalize_feedback_rpm(int32_t raw_rpm, bool inverted)
+{
+  return inverted ? -raw_rpm : raw_rpm;
+}
+
+static int32_t drive_direction_apply_right_output_rpm(const vehicle_config_t *config, int32_t logical_rpm)
+{
+  return drive_direction_apply_output_rpm(logical_rpm,
+                                          (config != NULL) && (config->right_drive_inverted != 0U));
+}
+
+static int32_t drive_direction_apply_left_output_rpm(const vehicle_config_t *config, int32_t logical_rpm)
+{
+  return drive_direction_apply_output_rpm(logical_rpm,
+                                          (config != NULL) && (config->left_drive_inverted != 0U));
+}
+
+static int32_t drive_direction_normalize_right_feedback_rpm(const vehicle_config_t *config, int32_t raw_rpm)
+{
+  return drive_direction_normalize_feedback_rpm(raw_rpm,
+                                                (config != NULL) && (config->right_drive_inverted != 0U));
+}
+
+static int32_t drive_direction_normalize_left_feedback_rpm(const vehicle_config_t *config, int32_t raw_rpm)
+{
+  return drive_direction_normalize_feedback_rpm(raw_rpm,
+                                                (config != NULL) && (config->left_drive_inverted != 0U));
+}
+
 static float pedal_raw_to_normalized(uint16_t raw, uint16_t min_raw, uint16_t max_raw)
 {
   float range;
@@ -666,6 +700,7 @@ static void handwheel_feedback_update(void)
 
 static void drive_feedback_update(void)
 {
+  const vehicle_config_t *config = vehicle_config_get();
   mssd_drive_feedback_t feedback;
   bool right_recent = false;
   bool left_recent = false;
@@ -685,8 +720,10 @@ static void drive_feedback_update(void)
   mssd_drive_controller_feedback_process(&s_drive_controller);
   if (mssd_drive_controller_get_feedback(&s_drive_controller, &feedback))
   {
-    s_control_state.right_actual_rpm = feedback.right_rpm;
-    s_control_state.left_actual_rpm = feedback.left_rpm;
+    s_control_state.right_actual_rpm =
+        drive_direction_normalize_right_feedback_rpm(config, feedback.right_rpm);
+    s_control_state.left_actual_rpm =
+        drive_direction_normalize_left_feedback_rpm(config, feedback.left_rpm);
 
     right_recent = feedback.right_valid && (feedback.right_age_ms <= DRIVE_FEEDBACK_STALE_MS);
     left_recent = feedback.left_valid && (feedback.left_age_ms <= DRIVE_FEEDBACK_STALE_MS);
@@ -722,6 +759,8 @@ static void drive_feedback_update(void)
 
 static bool drive_controller_apply_outputs(drive_command_mode_t mode, int32_t right_rpm, int32_t left_rpm)
 {
+  const vehicle_config_t *config = vehicle_config_get();
+
   if (!s_drive_can_ready)
   {
     return false;
@@ -730,7 +769,10 @@ static bool drive_controller_apply_outputs(drive_command_mode_t mode, int32_t ri
   switch (mode)
   {
     case DRIVE_COMMAND_SPEED:
-      return mssd_drive_controller_set_wheel_rpm(&s_drive_controller, right_rpm, left_rpm);
+      return mssd_drive_controller_set_wheel_rpm(
+          &s_drive_controller,
+          drive_direction_apply_right_output_rpm(config, right_rpm),
+          drive_direction_apply_left_output_rpm(config, left_rpm));
     case DRIVE_COMMAND_FREE_STOP:
       return mssd_drive_controller_apply_stop_mode(&s_drive_controller, MSSD_STOP_MODE_FREE);
     case DRIVE_COMMAND_ESTOP:
@@ -1105,7 +1147,7 @@ static void publish_remote_status_if_needed(void)
       "\"g\":\"%s\",\"oe\":%u,\"src\":\"%s\",\"rg\":\"%s\",\"ra\":%u,\"rv\":%u,"
       "\"co\":\"%s\",\"rm\":\"%s\",\"rto\":%u,\"lca\":%u,\"mov\":%u,\"mvc\":%u,\"mva\":%u,"
       "\"ssa\":%u,\"esa\":%u,\"hea\":%u,"
-      "\"ft\":%u,\"wb\":%u,\"rt\":%u,\"sid\":%u,\"hid\":%u,\"ls\":%u,\"lsd\":%u,"
+      "\"ft\":%u,\"wb\":%u,\"rt\":%u,\"sid\":%u,\"hid\":%u,\"ls\":%u,\"lsd\":%u,\"ldi\":%u,\"rdi\":%u,"
       "\"thr\":%u,\"brk\":%u,"
       "\"lr\":%ld,\"rr\":%ld,\"lar\":%ld,\"rar\":%ld,\"lav\":%u,\"rav\":%u,\"dfv\":%u,"
       "\"laa\":%lu,\"raa\":%lu,\"sr\":%d,\"dc\":%u,\"sc\":%u,"
@@ -1137,6 +1179,8 @@ static void publish_remote_status_if_needed(void)
       (unsigned int)config->handwheel_can_node_id,
       (unsigned int)config->linear_steering_enabled,
       linear_steering_detected() ? 1U : 0U,
+      (unsigned int)(config->left_drive_inverted ? 1U : 0U),
+      (unsigned int)(config->right_drive_inverted ? 1U : 0U),
       (unsigned int)io_state->throttle_raw,
       (unsigned int)io_state->brake_raw,
       (long)s_control_state.left_target_rpm,
@@ -1216,6 +1260,7 @@ static void reply_config(void)
       "\"steer_can_node_id\":%u,\"handwheel_can_node_id\":%u,"
       "\"chassis_type\":\"%s\",\"drive_axle\":\"%s\",\"drive_mode\":\"%s\","
       "\"linear_steering_enabled\":%s,\"pedal_config\":\"%s\","
+      "\"left_drive_inverted\":%s,\"right_drive_inverted\":%s,"
       "\"drive_controller_type\":\"%s\",\"steering_controller_type\":\"%s\"}\r\n",
       (unsigned int)config->front_track_mm,
       (unsigned int)config->wheelbase_mm,
@@ -1227,6 +1272,8 @@ static void reply_config(void)
       vehicle_config_drive_mode_name(mode),
       config->linear_steering_enabled ? "true" : "false",
       vehicle_config_pedal_config_name((pedal_config_t)config->pedal_config),
+      config->left_drive_inverted ? "true" : "false",
+      config->right_drive_inverted ? "true" : "false",
       vehicle_config_drive_controller_name(config->drive_controller_type),
       vehicle_config_steering_controller_name(config->steering_controller_type));
 }
@@ -1328,6 +1375,7 @@ static void reply_status(void)
       "\"drive_can_ready\":%s,\"steer_can_ready\":%s,"
       "\"steer_can_node_id\":%u,\"handwheel_can_node_id\":%u,"
       "\"linear_steering_enabled\":%s,\"linear_steering_detected\":%s,"
+      "\"left_drive_inverted\":%s,\"right_drive_inverted\":%s,"
       "\"steering_feedback\":%ld,\"steering_feedback_valid\":%s,\"steering_feedback_age_ms\":%lu}\r\n",
       board_io_gear_name(io_state->gear),
       (unsigned int)io_state->throttle_raw,
@@ -1382,6 +1430,8 @@ static void reply_status(void)
       (unsigned int)config->handwheel_can_node_id,
       config->linear_steering_enabled ? "true" : "false",
       linear_steering_detected() ? "true" : "false",
+      config->left_drive_inverted ? "true" : "false",
+      config->right_drive_inverted ? "true" : "false",
         (long)steering_feedback_raw,
         steering_feedback_valid ? "true" : "false",
         (unsigned long)steering_feedback_age_ms);
@@ -1559,6 +1609,16 @@ static void handle_set_config(const char *line)
     config.handwheel_can_node_id = (uint16_t)value;
   }
 
+  if (json_get_bool(line, "\"left_drive_inverted\"", &linear_enabled))
+  {
+    config.left_drive_inverted = linear_enabled ? 1U : 0U;
+  }
+
+  if (json_get_bool(line, "\"right_drive_inverted\"", &linear_enabled))
+  {
+    config.right_drive_inverted = linear_enabled ? 1U : 0U;
+  }
+
   if (json_get_string(line, "\"chassis_type\"", text, sizeof(text)) &&
       vehicle_config_parse_chassis_type(text, &chassis_type))
   {
@@ -1696,6 +1756,7 @@ static void handle_ewm22_send_at(const char *line)
 
 static void handle_drive_test(const char *line)
 {
+  const vehicle_config_t *config = vehicle_config_get();
   int32_t right_rpm = 0;
   int32_t left_rpm = 0;
   bool have_right = json_get_int32(line, "\"right_rpm\"", &right_rpm);
@@ -1727,7 +1788,9 @@ static void handle_drive_test(const char *line)
 
   control_set_enabled(false);
 
-  if (mssd_drive_controller_set_wheel_rpm(&s_drive_controller, right_rpm, left_rpm))
+  if (mssd_drive_controller_set_wheel_rpm(&s_drive_controller,
+                                          drive_direction_apply_right_output_rpm(config, right_rpm),
+                                          drive_direction_apply_left_output_rpm(config, left_rpm)))
   {
     s_control_state.right_target_rpm = right_rpm;
     s_control_state.left_target_rpm = left_rpm;

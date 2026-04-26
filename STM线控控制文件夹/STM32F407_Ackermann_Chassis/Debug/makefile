@@ -62,8 +62,8 @@ all: main-build
 main-build: STM32F407_Ackermann_Chassis.elf secondary-outputs
 
 # Tool invocations
-STM32F407_Ackermann_Chassis.elf STM32F407_Ackermann_Chassis.map: $(OBJS) $(USER_OBJS) C:\Users\HCRXc\Desktop\线控底盘\STM线控控制文件夹\STM32F407_Ackermann_Chassis\STM32F407ZGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "STM32F407_Ackermann_Chassis.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\HCRXc\Desktop\线控底盘\STM线控控制文件夹\STM32F407_Ackermann_Chassis\STM32F407ZGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F407_Ackermann_Chassis.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+STM32F407_Ackermann_Chassis.elf STM32F407_Ackermann_Chassis.map: $(OBJS) $(USER_OBJS) ../STM32F407ZGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "STM32F407_Ackermann_Chassis.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"../STM32F407ZGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F407_Ackermann_Chassis.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

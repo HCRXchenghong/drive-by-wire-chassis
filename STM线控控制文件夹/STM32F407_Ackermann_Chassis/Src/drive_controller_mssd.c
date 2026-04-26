@@ -4,9 +4,9 @@
 
 #define MSSD_REG_RIGHT_SPEED_HIGH 0x0009U
 #define MSSD_REG_RIGHT_SPEED_LOW 0x000AU
-/* Channel-2 runtime speed follows the next register pair in the MSSD map. */
-#define MSSD_REG_LEFT_SPEED_HIGH 0x000BU
-#define MSSD_REG_LEFT_SPEED_LOW 0x000CU
+/* 2026-04-27 USB-CAN live capture confirmed left runtime speed at 0x14/0x15. */
+#define MSSD_REG_LEFT_SPEED_HIGH 0x0014U
+#define MSSD_REG_LEFT_SPEED_LOW 0x0015U
 #define MSSD_FEEDBACK_QUERY_PERIOD_MS 20U
 
 static void mssd_build_write32(uint8_t *frame, uint16_t reg_addr, int32_t value)

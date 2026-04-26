@@ -137,6 +137,8 @@ export function persistConnectedProfile(bridgeState) {
     rearTrackMm: sessionState.appConfig.rearTrackMm,
     steerCanNodeId: sessionState.appConfig.steerCanNodeId,
     handwheelCanNodeId: sessionState.appConfig.handwheelCanNodeId,
+    leftDriveInverted: !!sessionState.appConfig.leftDriveInverted,
+    rightDriveInverted: !!sessionState.appConfig.rightDriveInverted,
     chassisType: sessionState.appConfig.chassisType,
     driveAxle: sessionState.appConfig.driveAxle,
     hasLinearSteering: sessionState.appConfig.hasLinearSteering,

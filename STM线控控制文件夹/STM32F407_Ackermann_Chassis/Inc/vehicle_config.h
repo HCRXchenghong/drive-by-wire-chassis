@@ -53,7 +53,8 @@ typedef struct
   uint8_t steering_controller_type;
   uint8_t linear_steering_enabled;
   uint8_t pedal_config;
-  uint8_t reserved0[2];
+  uint8_t left_drive_inverted;
+  uint8_t right_drive_inverted;
   uint16_t steer_can_node_id;
   uint16_t handwheel_can_node_id;
   uint16_t throttle_raw_min;
