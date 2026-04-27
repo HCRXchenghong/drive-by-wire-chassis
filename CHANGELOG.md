@@ -2,6 +2,32 @@
 
 本项目从 `v1.0.0` 开始使用正式版本标签管理。
 
+## v2.0.1
+
+发布时间：2026-04-27
+
+### 新增
+
+- 固件新增 `CAN` 事务门控层：同一物理总线同一时刻只允许一个未完成读事务，读请求必须等匹配回包或超时后才能继续。
+- 固件新增 `CAN` 错误闭环：接入 `ERROR_WARNING / ERROR_PASSIVE / BUSOFF / LAST_ERROR_CODE / ERROR`，并回传 `fault_code / fault_domain / fault_message_zh / can_recovery_active / can1_bus_off_count / can2_bus_off_count / can1_last_error_code / can2_last_error_code / outputs_locked_by_fault`。
+- 机械转向控制新增“目标角 + 真实位置反馈”闭环，状态回传新增 `steer_target_angle_deg / steer_actual_angle_deg`。
+- App 新增通信与安全故障中文弹窗，并在状态跃迁时只弹一次。
+- 更新 `调试脚本/mssd_dual_wheel_can.ps1`、`调试脚本/mssc_steering_can.ps1` 和 `调试脚本/usb_can_rear_drive_steering_test.html`，统一改成按回复或超时串行的事务模型。
+
+### 修复
+
+- 修复旧版 `recovery_active` 处理里“恢复后自己把自己锁死，导致后续读写都排不进去”的风险。
+- 修复 HTML 调试页事务队列在某次超时后可能整条 Promise 链失效、后续所有命令都被卡住的问题。
+- 修复恢复后可能把“新高字 + 旧低字”拼成假新鲜速度 / 假新鲜转向位置的问题，现已要求重新获取完整反馈组合后才解除反馈故障。
+- 修复 PowerShell 调试脚本读请求可能先把串口回包吞掉、后续等待函数反而读不到对应回复的问题。
+- 修复 App 端部分新增安全弹窗中文文案乱码问题。
+
+### 解决的问题
+
+- 现在固件、App、HTML 调试页、PowerShell 调试脚本已经统一到同一套真实 CAN 事务模型上，不再是“固件按回复串行，工具还在盲发”的割裂状态。
+- 现在 CAN 故障不再只是“看起来没回包”，而是能明确区分总线错误、回复超时、恢复中和输出锁停状态。
+- 现在转向回中不再依赖自然停，而是基于真实位置反馈做闭环回中，安全边界比之前清晰得多。
+
 ## v1.0.2
 
 发布时间：2026-04-27

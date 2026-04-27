@@ -458,7 +458,10 @@
         writer: null,
         keepReading: false,
         readBuffer: "",
-        readLoopPromise: null
+        readLoopPromise: null,
+        pendingRead: null,
+        txChain: Promise.resolve(),
+        lastTxAt: 0
       };
     }
 
@@ -693,8 +696,19 @@
         return;
       }
 
+      const adapter = getAdapter(kind);
       const index = ((frame.data[2] << 8) | frame.data[1]) & 0xffff;
       const wordValue = ((frame.data[5] << 8) | frame.data[4]) & 0xffff;
+
+      if (adapter.pendingRead &&
+          frame.canId === adapter.pendingRead.canId &&
+          index === adapter.pendingRead.expectedIndex) {
+        const pending = adapter.pendingRead;
+        adapter.pendingRead = null;
+        clearTimeout(pending.timeoutHandle);
+        log(`[${kindLabel(kind)}] READ 0x${toHex(pending.register, 2)} <- ${toHex(wordValue, 4)}`);
+        pending.resolve({ frame, index, wordValue });
+      }
 
       if (kind === "drive") {
         if (frame.canId !== getDriveNodeId()) {
@@ -814,17 +828,112 @@
       })();
     }
 
-    async function sendLine(kind, command, label = "SLCAN") {
+    function queueAdapterTask(kind, task) {
+      const adapter = getAdapter(kind);
+      const run = adapter.txChain.catch(() => undefined).then(async () => {
+        const waitMs = Math.max(0, 10 - (Date.now() - adapter.lastTxAt));
+        if (waitMs > 0) {
+          await sleep(waitMs);
+        }
+
+        return task();
+      });
+
+      adapter.txChain = run.catch(() => undefined);
+      return run;
+    }
+
+    async function sendLineImmediate(kind, command, label = "SLCAN") {
       ensureConnected(kind);
       const adapter = getAdapter(kind);
       log(`[${kindLabel(kind)}] TX ${label}: ${command}`);
       await adapter.writer.write(textEncoder.encode(`${command}\r`));
+      adapter.lastTxAt = Date.now();
+    }
+
+    async function sendLine(kind, command, label = "SLCAN") {
+      return queueAdapterTask(kind, () => sendLineImmediate(kind, command, label));
     }
 
     async function sendCanFrame(kind, canId, data, label) {
       const frame = buildSlcanFrame(canId, data);
-      log(`[${kindLabel(kind)}] CAN 0x${toHex(canId, 3)} ${label} -> ${data.map((byte) => toHex(byte, 2)).join(" ")}`);
-      await sendLine(kind, frame, "CAN");
+      const adapter = getAdapter(kind);
+      const expectedIndex = data.length >= 3 ? ((data[2] << 8) | data[1]) & 0xffff : 0;
+
+      if (data[0] === 0x40) {
+        return queueAdapterTask(kind, async () => {
+          if (adapter.pendingRead) {
+            throw new Error(`${kindLabel(kind)} 仍有未完成的读事务`);
+          }
+
+          log(`[${kindLabel(kind)}] READ wait reg 0x${toHex(expectedIndex - 0x4000, 2)} / timeout 80 ms`);
+          const resultPromise = new Promise((resolve, reject) => {
+            const timeoutHandle = setTimeout(() => {
+              if (adapter.pendingRead && adapter.pendingRead.expectedIndex === expectedIndex) {
+                adapter.pendingRead = null;
+                log(`[${kindLabel(kind)}] READ timeout 0x${toHex(expectedIndex, 4)}`, "warn");
+                reject(new Error(`${kindLabel(kind)} 读取 0x${toHex(expectedIndex, 4)} 超时`));
+              }
+            }, 80);
+
+            adapter.pendingRead = {
+              canId,
+              register: expectedIndex - 0x4000,
+              expectedIndex,
+              timeoutHandle,
+              resolve,
+              reject
+            };
+          });
+
+          log(`[${kindLabel(kind)}] CAN 0x${toHex(canId, 3)} ${label} -> ${data.map((byte) => toHex(byte, 2)).join(" ")}`);
+          await sendLineImmediate(kind, frame, "CAN");
+          return resultPromise;
+        });
+      }
+
+      return queueAdapterTask(kind, async () => {
+        log(`[${kindLabel(kind)}] CAN 0x${toHex(canId, 3)} ${label} -> ${data.map((byte) => toHex(byte, 2)).join(" ")}`);
+        await sendLineImmediate(kind, frame, "CAN");
+      });
+    }
+
+    async function requestRead16(kind, canId, register, label, timeoutMs = 80) {
+      const adapter = getAdapter(kind);
+      const data = buildRead16Data(register);
+      const frame = buildSlcanFrame(canId, data);
+      const expectedIndex = 0x4000 + register;
+
+      return queueAdapterTask(kind, async () => {
+        if (adapter.pendingRead) {
+          throw new Error(`${kindLabel(kind)} 仍有未完成读事务`);
+        }
+
+        log(`[${kindLabel(kind)}] READ 0x${toHex(register, 2)} waiting ${timeoutMs} ms`);
+
+        const resultPromise = new Promise((resolve, reject) => {
+          const timeoutHandle = setTimeout(() => {
+            if (adapter.pendingRead && adapter.pendingRead.register === register) {
+              adapter.pendingRead = null;
+              log(`[${kindLabel(kind)}] READ 0x${toHex(register, 2)} timeout`, "warn");
+              reject(new Error(`${kindLabel(kind)} 读取 0x${toHex(register, 2)} 超时`));
+            }
+          }, timeoutMs);
+
+          adapter.pendingRead = {
+            canId,
+            register,
+            expectedIndex,
+            timeoutHandle,
+            resolve,
+            reject
+          };
+        });
+
+        log(`[${kindLabel(kind)}] CAN 0x${toHex(canId, 3)} ${label} -> ${data.map((byte) => toHex(byte, 2)).join(" ")}`);
+        await sendLineImmediate(kind, frame, "CAN");
+        return resultPromise;
+      });
     }
 
     async function queryAdapterVersion(kind) {
@@ -845,6 +954,15 @@
       const adapter = getAdapter(kind);
       clearAdapterTimer(kind);
       adapter.keepReading = false;
+
+      if (adapter.pendingRead) {
+        clearTimeout(adapter.pendingRead.timeoutHandle);
+        adapter.pendingRead.reject(new Error(`${kindLabel(kind)} 串口已断开，读事务取消`));
+        adapter.pendingRead = null;
+      }
+
+      adapter.txChain = Promise.resolve();
+      adapter.lastTxAt = 0;
 
       try {
         if (adapter.writer) {
@@ -959,8 +1077,7 @@
       const canId = getDriveNodeId();
       const regs = [0x09, 0x0A, 0x14, 0x15];
       for (const reg of regs) {
-        await sendCanFrame("drive", canId, buildRead16Data(reg), `读取驱动反馈 0x${toHex(reg, 2)}`);
-        await sleep(18);
+        await requestRead16("drive", canId, reg, `读取驱动反馈 0x${toHex(reg, 2)}`);
       }
     }
 
@@ -968,7 +1085,6 @@
       clearAdapterTimer("drive");
       const canId = getDriveNodeId();
       await sendCanFrame("drive", canId, buildWrite32SpeedData(0x39, 0), "右轮 0 RPM");
-      await sleep(12);
       await sendCanFrame("drive", canId, buildWrite32SpeedData(0x3D, 0), "左轮 0 RPM");
     }
 
@@ -976,14 +1092,12 @@
       clearAdapterTimer("drive");
       const canId = getDriveNodeId();
       await sendCanFrame("drive", canId, buildWrite16Data(0x38, 1), "右轮急停");
-      await sleep(12);
       await sendCanFrame("drive", canId, buildWrite16Data(0x3C, 1), "左轮急停");
     }
 
     async function sendDriveRpm(rightRpm, leftRpm, title) {
       const canId = getDriveNodeId();
       await sendCanFrame("drive", canId, buildWrite32SpeedData(0x39, rightRpm), `${title} / 右轮 ${rightRpm} RPM`);
-      await sleep(12);
       await sendCanFrame("drive", canId, buildWrite32SpeedData(0x3D, leftRpm), `${title} / 左轮 ${leftRpm} RPM`);
     }
 
@@ -1022,7 +1136,6 @@
     async function prepareSteerCanControl() {
       const canId = getSteerNodeId();
       await sendCanFrame("steer", canId, buildWrite16Data(0x006B, 0), "切换到速度闭环");
-      await sleep(15);
       await sendCanFrame("steer", canId, buildWrite16Data(0x006C, getSteerControlMode()), `设置控制模式 ${getSteerControlMode()}`);
     }
 
@@ -1030,7 +1143,6 @@
       clearAdapterTimer("steer");
       const canId = getSteerNodeId();
       await sendCanFrame("steer", canId, buildWrite16Data(0x0031, 0), "转向 0 RPM");
-      await sleep(12);
       await sendCanFrame("steer", canId, buildWrite16Data(0x0030, getSteerStopMode()), `转向停止模式 ${getSteerStopMode()}`);
     }
 
@@ -1040,9 +1152,8 @@
       updateSteerFeedbackUi();
 
       const canId = getSteerNodeId();
-      await sendCanFrame("steer", canId, buildRead16Data(0x13), "读取转向位置高字");
-      await sleep(18);
-      await sendCanFrame("steer", canId, buildRead16Data(0x14), "读取转向位置低字");
+      await requestRead16("steer", canId, 0x13, "读取转向位置高字");
+      await requestRead16("steer", canId, 0x14, "读取转向位置低字");
     }
 
     async function runSteeringTimedTest(speedRpm, title) {
@@ -1051,7 +1162,6 @@
 
       const canId = getSteerNodeId();
       await sendCanFrame("steer", canId, buildWrite16Data(0x0030, 0), "清除转向停止状态");
-      await sleep(12);
       await sendCanFrame("steer", canId, buildWrite16Data(0x0031, speedRpm), `${title} / ${speedRpm} RPM`);
 
       const durationMs = getSteerDurationMs();

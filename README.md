@@ -30,6 +30,8 @@
   - 加入 `MSSD` 速度回读状态链路、“命令运动状态 / 实际运动状态”双状态、App 侧驱动轮方向即时校正，以及双驱动轮离线反馈联调脚本。
 - `v1.0.2`
   - 加入 `drive_max_rpm` 全链路配置、状态回传与 Flash 兼容迁移，并新增基于浏览器 `Web Serial` 的 USB-CAN 离线调试页面。
+- `v2.0.1`
+  - 加入 CAN 事务门控、总线故障锁停与自动恢复、机械转向位置闭环、App 中文故障弹窗，以及 HTML / PowerShell 调试工具的串行读事务模型。
 
 在 `Gitee` 上可以直接按标签下载对应版本源码包，每个标签都可以单独归档和回滚。
 
@@ -50,7 +52,7 @@
 - `项目资料`
   - 旧版 IOC、设计说明等仍可参考的资料。
 - `调试脚本`
-  - 保留驱动轮控制器、转向控制器的离线联调脚本；其中 `mssd_dual_wheel_can.ps1` 已补齐“目标转速下发 + 实际速度回读 + 单轮/双轮顺序测试”能力，`usb_can_rear_drive_steering_test.html` 可通过浏览器直接做双 USB-CAN 联调。
+  - 保留驱动轮控制器、转向控制器的离线联调脚本；其中 `mssd_dual_wheel_can.ps1`、`mssc_steering_can.ps1`、`usb_can_rear_drive_steering_test.html` 都已经补齐“按回复或超时串行”的 CAN 读事务模型，避免盲发读包把控制器总线拖挂。
 
 当前已经明确不再依赖的内容，应当视为历史残留，不作为主链路的一部分：
 
@@ -231,6 +233,26 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 
   - 由配置参数 `steer_can_node_id` 决定
   - 默认值 `1`
 
+#### 4.2.1 机械转向离线联调脚本
+
+当前保留的机械转向联调脚本为：
+
+- `调试脚本/mssc_steering_can.ps1`
+
+当前脚本支持：
+
+- 切换速度闭环模式
+- 下发机械转向转速命令
+- 下发停止模式
+- 按 `CAN 读请求 -> 等待 0x42 回包或超时` 的串行事务模型读取位置高低字
+- 可选 `-ReadPosition`，在动作前后读取 `0x13/0x14` 两个位置字做现场核对
+
+推荐现场命令：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -Port COM5 -NodeId 1 -SpeedRpm 300 -DurationSeconds 1.5 -ControlMode 10 -ReadPosition -Run
+```
+
 ### 4.3 线性方向盘控制器
 
 - 型号：`MSSC`
@@ -366,6 +388,97 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 
 - 你在 App 里改的最大驱动输出，不是前端假显示
 - 它会真实影响本地 / 远程驱动目标转速换算上限
 - 下次上电后仍然保持
+
+### 5.5 CAN 事务门控
+
+从 `v2.0.1` 开始，固件里的 `can_transport` 不再是“固定周期盲发 + 被动收包”的模型，而是改成了真实的事务调度器。
+
+当前实现约束如下：
+
+1. 同一条物理 CAN 总线同一时刻只允许一个未完成读事务。
+2. 读请求发出后，必须等到：
+   - 收到匹配 `StdId + index + cmd` 的回包，或者
+   - 到达单次超时
+   之后，才允许继续发下一条读请求。
+3. 写命令虽然不等待协议 ACK，但也必须占用同一个发送窗口。
+4. 每次发送后都保留 `10 ms` 静默间隔，避免读写交错顶在一起。
+5. 机械转向和线性方向盘如果共用同一条 `CAN2`，它们天然会共用同一个事务调度槽位，不会各发各的。
+
+这样做的目的不是“把系统改慢”，而是为了避免之前那种典型风险：
+
+- 主机正在盲发下一条读包
+- 控制器恰好同时回上一条读包
+- USB-CAN / SLCAN / 控制器缓存边界处理不好
+- 最终导致数据错位、回包识别错误，严重时让总线或转接器进入假死状态
+
+### 5.6 CAN 故障锁停与自动恢复
+
+从 `v2.0.1` 开始，固件对 CAN 异常不再只是“看有没有回包”，而是正式接入：
+
+- `ERROR_WARNING`
+- `ERROR_PASSIVE`
+- `BUSOFF`
+- `LAST_ERROR_CODE`
+- `ERROR`
+
+并记录：
+
+- `HAL_CAN_GetError()`
+- `TEC`
+- `REC`
+- `LEC`
+- `bus_off_count`
+- `last_recovery_tick_ms`
+
+当前恢复链路如下：
+
+1. 一旦出现 CAN 错误中断、读事务超时、或发送失败，当前总线先进入故障态。
+2. 与该总线相关的运动输出被软件锁停。
+3. 该总线的读轮询会先停下来，不再继续盲发。
+4. 固件调用 `HAL_CAN_Stop()` / `HAL_CAN_Start()` 并重新挂中断，做自动恢复。
+5. 恢复后不会立刻解锁运动。
+6. 只有真正重新收到一轮新鲜反馈，才解除总线恢复态。
+
+这里“新鲜反馈”不是只看一个孤立的字：
+
+- 驱动轮必须重新拿到左右轮速度高低字的完整组合，才会把驱动反馈故障清掉。
+- 机械转向必须重新拿到位置高低字的完整组合，才会把转向反馈故障清掉。
+
+这一步是为了避免“恢复后拿到一个新高字 + 一个旧低字，就被误判成新位置 / 新速度”的假新鲜问题。
+
+### 5.7 机械转向闭环与限位策略
+
+从 `v2.0.1` 开始，机械转向不再只是简单按摇杆开环给一个转速。
+
+当前策略变为：
+
+1. 先把摇杆横向输入映射成目标转向原始值。
+2. 再根据机械转向控制器真实位置反馈，换算成当前角度。
+3. 用“目标角 - 当前角”的误差去算转向目标 RPM。
+4. 摇杆回中时，目标角回到中心点，转向电机也会闭环回中，而不是靠自然停。
+
+限位策略：
+
+- 左满 / 右满不会直接撞校准极限，而是钳位到该侧 `95%`。
+- `10°` 点和最大限位点允许重合。
+- 如果两者重合，系统仍会以“中心点为 0°”来计算目标角和实际角，不会把几何关系算乱。
+
+App 新增的相关真实状态包括：
+
+- `steer_target_angle_deg`
+- `steer_actual_angle_deg`
+- `fault_code`
+- `fault_domain`
+- `fault_message_zh`
+- `drive_can_fault`
+- `steer_can_fault`
+- `handwheel_can_fault`
+- `can_recovery_active`
+- `can1_bus_off_count`
+- `can2_bus_off_count`
+- `can1_last_error_code`
+- `can2_last_error_code`
+- `outputs_locked_by_fault`
 
 ---
 

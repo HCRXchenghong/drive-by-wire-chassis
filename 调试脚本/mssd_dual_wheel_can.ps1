@@ -19,6 +19,18 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$script:LastTxTickMs = 0
+
+function Write-TraceLine {
+    param(
+        [string]$Message,
+        [ValidateSet("INFO", "WARN", "ERROR")]
+        [string]$Level = "INFO"
+    )
+
+    $timestamp = Get-Date -Format "HH:mm:ss.fff"
+    Write-Host ("[{0}] [{1}] {2}" -f $timestamp, $Level, $Message)
+}
 
 function ConvertTo-Unsigned32 {
     param([int]$Value)
@@ -154,6 +166,42 @@ function Read-SerialQuiet {
     return $buffer
 }
 
+function Wait-TxGap {
+    param([int]$GapMs = 10)
+
+    if (-not $Run) {
+        return
+    }
+
+    $now = [Environment]::TickCount64
+    $waitMs = $GapMs - ($now - $script:LastTxTickMs)
+    if ($waitMs -gt 0) {
+        Start-Sleep -Milliseconds ([int]$waitMs)
+    }
+}
+
+function Get-CompleteSerialLines {
+    param([ref]$Buffer)
+
+    $lines = New-Object System.Collections.Generic.List[string]
+
+    while ($true) {
+        $match = [regex]::Match($Buffer.Value, "^(.*?)(\r\n|\n|\r)")
+        if (-not $match.Success) {
+            break
+        }
+
+        $line = $match.Groups[1].Value.Trim()
+        $Buffer.Value = $Buffer.Value.Substring($match.Length)
+
+        if (-not [string]::IsNullOrWhiteSpace($line)) {
+            $lines.Add($line)
+        }
+    }
+
+    return @($lines.ToArray())
+}
+
 function Send-SlcanCommand {
     param(
         [System.IO.Ports.SerialPort]$Serial,
@@ -161,19 +209,21 @@ function Send-SlcanCommand {
         [switch]$SuppressReply
     )
 
-    Write-Host "SLCAN -> $Command"
+    Write-TraceLine "SLCAN -> $Command"
     if (-not $Run) {
         return ""
     }
 
+    Wait-TxGap -GapMs 10
     $Serial.Write("$Command`r")
+    $script:LastTxTickMs = [Environment]::TickCount64
     if ($SuppressReply) {
         return ""
     }
 
     $reply = Read-SerialQuiet -Serial $Serial -QuietMs 80 -MaxMs 400
     if ((-not $SuppressReply) -and $reply) {
-        Write-Host ("SLCAN <- " + ($reply -replace "`r", "\r" -replace "`n", "\n"))
+        Write-TraceLine ("SLCAN <- " + ($reply -replace "`r", "\r" -replace "`n", "\n"))
     }
 
     return $reply
@@ -189,7 +239,7 @@ function Send-CanData {
     )
 
     $slcan = New-SlcanFrame -CanId $CanId -Data $Data
-    Write-Host ("{0}: CAN ID 0x{1:X3}, DATA {2}" -f $Label, $CanId, (ConvertTo-PrettyHex $Data))
+    Write-TraceLine ("{0}: CAN ID 0x{1:X3}, DATA {2}" -f $Label, $CanId, (ConvertTo-PrettyHex $Data))
     return Send-SlcanCommand -Serial $Serial -Command $slcan -SuppressReply:$SuppressReply
 }
 
@@ -228,6 +278,77 @@ function Parse-SlcanLine {
     catch {
         return $null
     }
+}
+
+function Wait-CanReply {
+    param(
+        [System.IO.Ports.SerialPort]$Serial,
+        [int]$CanId,
+        [int]$ExpectedIndex,
+        [int]$TimeoutMs = 80,
+        [string]$Label = ""
+    )
+
+    if (-not $Run) {
+        return $null
+    }
+
+    $buffer = ""
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    Write-TraceLine ("WAIT CAN reply: id=0x{0:X3}, index=0x{1:X4}, timeout={2} ms, label={3}" -f $CanId, $ExpectedIndex, $TimeoutMs, $Label)
+
+    while ($sw.ElapsedMilliseconds -lt $TimeoutMs) {
+        if ($Serial.BytesToRead -le 0) {
+            Start-Sleep -Milliseconds 5
+            continue
+        }
+
+        $buffer += $Serial.ReadExisting()
+        foreach ($line in (Get-CompleteSerialLines ([ref]$buffer))) {
+            $frame = Parse-SlcanLine -Line $line
+            if (-not $frame) {
+                Write-TraceLine ("RAW <- {0}" -f $line)
+                continue
+            }
+
+            Write-TraceLine ("CAN <- 0x{0:X3}, DATA {1}" -f $frame.CanId, (ConvertTo-PrettyHex $frame.Data))
+            if (($frame.CanId -ne $CanId) -or ($frame.Dlc -lt 6) -or ($frame.Data[0] -ne 0x42)) {
+                continue
+            }
+
+            $index = ([int]$frame.Data[2] -shl 8) -bor [int]$frame.Data[1]
+            if ($index -ne $ExpectedIndex) {
+                continue
+            }
+
+            $wordValue = ([int]$frame.Data[5] -shl 8) -bor [int]$frame.Data[4]
+            return [pscustomobject]@{
+                Raw       = $frame.Raw
+                CanId     = $frame.CanId
+                Dlc       = $frame.Dlc
+                Data      = $frame.Data
+                Index     = $index
+                WordValue = $wordValue
+            }
+        }
+    }
+
+    throw ("CAN reply timeout: id=0x{0:X3}, index=0x{1:X4}, timeout={2} ms, label={3}" -f $CanId, $ExpectedIndex, $TimeoutMs, $Label)
+}
+
+function Request-CanRead16 {
+    param(
+        [System.IO.Ports.SerialPort]$Serial,
+        [int]$CanId,
+        [int]$Register,
+        [string]$Label,
+        [int]$TimeoutMs = 80
+    )
+
+    $data = New-Read16Data -Register $Register
+    $expectedIndex = 0x4000 + $Register
+    Send-CanData -Serial $Serial -CanId $CanId -Data $data -Label $Label -SuppressReply | Out-Null
+    return Wait-CanReply -Serial $Serial -CanId $CanId -ExpectedIndex $expectedIndex -TimeoutMs $TimeoutMs -Label $Label
 }
 
 function ConvertTo-FeedbackSnapshot {
@@ -270,43 +391,30 @@ function Get-FeedbackSnapshot {
     $words = @{}
     $rxLines = New-Object System.Collections.Generic.List[string]
 
+    $regMap = @(
+        @{ Register = 0x09; Name = "RightHigh" },
+        @{ Register = 0x0A; Name = "RightLow" },
+        @{ Register = 0x14; Name = "LeftHigh" },
+        @{ Register = 0x15; Name = "LeftLow" }
+    )
+
     for ($sample = 1; $sample -le $Samples; $sample++) {
-        foreach ($reg in 0x09, 0x0A, 0x14, 0x15) {
-            $label = "Feedback read 0x{0:X2} (sample {1}/{2})" -f $reg, $sample, $Samples
-            Send-CanData -Serial $Serial -CanId $CanId -Data (New-Read16Data -Register $reg) -Label $label -SuppressReply | Out-Null
+        foreach ($entry in $regMap) {
+            $label = "Feedback read 0x{0:X2} (sample {1}/{2})" -f $entry.Register, $sample, $Samples
+
+            try {
+                $reply = Request-CanRead16 -Serial $Serial -CanId $CanId -Register $entry.Register -Label $label -TimeoutMs 80
+                if ($reply) {
+                    $rxLines.Add($reply.Raw)
+                    $words[$entry.Name] = $reply.WordValue
+                }
+            } catch {
+                Write-TraceLine $_.Exception.Message "WARN"
+            }
         }
 
-        if ($Run) {
+        if ($Run -and ($sample -lt $Samples)) {
             Start-Sleep -Milliseconds $PollMs
-            $reply = Read-SerialQuiet -Serial $Serial -QuietMs 80 -MaxMs ([Math]::Max(200, $PollMs + 200))
-            if ($reply) {
-                $lines = $reply -split "(\r\n|\n|\r)"
-                foreach ($line in $lines) {
-                    $frame = Parse-SlcanLine -Line $line
-                    if (-not $frame) {
-                        continue
-                    }
-
-                    $rxLines.Add($frame.Raw)
-                    if (($frame.CanId -ne $CanId) -or ($frame.Dlc -lt 6)) {
-                        continue
-                    }
-
-                    if (($frame.Data[0] -ne 0x42) -or ($frame.Data[3] -ne 0x00)) {
-                        continue
-                    }
-
-                    $index = ([int]$frame.Data[2] -shl 8) -bor [int]$frame.Data[1]
-                    $wordValue = ([int]$frame.Data[5] -shl 8) -bor [int]$frame.Data[4]
-
-                    switch ($index) {
-                        0x4009 { $words.RightHigh = $wordValue; break }
-                        0x400A { $words.RightLow = $wordValue; break }
-                        0x4014 { $words.LeftHigh = $wordValue; break }
-                        0x4015 { $words.LeftLow = $wordValue; break }
-                    }
-                }
-            }
         }
     }
 

@@ -2,6 +2,7 @@
 #define DRIVE_CONTROLLER_MSSD_H
 
 #include "main.h"
+#include "can_transport.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -10,8 +11,12 @@ typedef struct
 {
   CAN_HandleTypeDef *hcan;
   uint16_t node_id;
-  uint32_t last_feedback_rx_count;
   uint32_t last_feedback_query_tick_ms;
+  uint32_t last_feedback_ok_tick_ms;
+  uint32_t feedback_timeout_count;
+  uint32_t last_feedback_timeout_tick_ms;
+  uint32_t last_seen_recovery_count;
+  uint32_t pending_feedback_sequence;
   uint16_t right_speed_high_word;
   uint16_t right_speed_low_word;
   uint16_t left_speed_high_word;
@@ -19,6 +24,9 @@ typedef struct
   uint8_t right_speed_words_valid_mask;
   uint8_t left_speed_words_valid_mask;
   uint8_t next_feedback_reg_index;
+  uint8_t pending_feedback_reg_index;
+  bool feedback_request_pending;
+  bool feedback_fault_active;
   int32_t right_actual_rpm;
   int32_t left_actual_rpm;
   uint32_t right_actual_tick_ms;
@@ -44,12 +52,28 @@ typedef enum
 
 void mssd_drive_controller_bind(mssd_drive_controller_t *controller, CAN_HandleTypeDef *hcan, uint16_t node_id);
 bool mssd_drive_controller_set_wheel_rpm(const mssd_drive_controller_t *controller, int32_t right_rpm, int32_t left_rpm);
+bool mssd_drive_controller_set_wheel_rpm_priority(const mssd_drive_controller_t *controller,
+                                                  int32_t right_rpm,
+                                                  int32_t left_rpm,
+                                                  can_transport_priority_t priority);
 bool mssd_drive_controller_set_stop_mode(const mssd_drive_controller_t *controller,
                                          mssd_stop_mode_t right_mode,
                                          mssd_stop_mode_t left_mode);
+bool mssd_drive_controller_set_stop_mode_priority(const mssd_drive_controller_t *controller,
+                                                  mssd_stop_mode_t right_mode,
+                                                  mssd_stop_mode_t left_mode,
+                                                  can_transport_priority_t priority);
 bool mssd_drive_controller_apply_stop_mode(const mssd_drive_controller_t *controller, mssd_stop_mode_t mode);
+bool mssd_drive_controller_apply_stop_mode_priority(const mssd_drive_controller_t *controller,
+                                                    mssd_stop_mode_t mode,
+                                                    can_transport_priority_t priority);
 bool mssd_drive_controller_stop(const mssd_drive_controller_t *controller);
+bool mssd_drive_controller_stop_priority(const mssd_drive_controller_t *controller,
+                                         can_transport_priority_t priority);
 void mssd_drive_controller_feedback_process(mssd_drive_controller_t *controller);
 bool mssd_drive_controller_get_feedback(const mssd_drive_controller_t *controller, mssd_drive_feedback_t *feedback);
+bool mssd_drive_controller_feedback_fault_active(const mssd_drive_controller_t *controller);
+uint32_t mssd_drive_controller_feedback_timeout_count(const mssd_drive_controller_t *controller);
+uint32_t mssd_drive_controller_last_feedback_ok_age_ms(const mssd_drive_controller_t *controller);
 
 #endif

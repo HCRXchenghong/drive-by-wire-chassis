@@ -197,6 +197,42 @@
                   <text class="info-value">{{ hardwareEstopActive ? '已按下' : '未触发' }}</text>
                 </view>
                 <view class="info-row">
+                  <text class="info-label">故障输出锁停</text>
+                  <text class="info-value">{{ outputsLockedByFault ? '已锁停' : '未锁停' }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">当前故障代码</text>
+                  <text class="info-value">{{ faultCode === 'none' ? '无' : faultCode }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">当前故障域</text>
+                  <text class="info-value">{{ telemetryStatus && telemetryStatus.faultDomain ? telemetryStatus.faultDomain : 'none' }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">当前故障原因</text>
+                  <text class="info-value">{{ faultMessageZh || '无' }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">总线恢复状态</text>
+                  <text class="info-value">{{ telemetryStatus && telemetryStatus.canRecoveryActive ? '恢复中' : '正常' }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">CAN1 Bus-Off 次数</text>
+                  <text class="info-value">{{ telemetryStatus ? telemetryStatus.can1BusOffCount : 0 }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">CAN2 Bus-Off 次数</text>
+                  <text class="info-value">{{ telemetryStatus ? telemetryStatus.can2BusOffCount : 0 }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">CAN1 最后错误码</text>
+                  <text class="info-value">{{ telemetryStatus ? telemetryStatus.can1LastErrorCode : 0 }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">CAN2 最后错误码</text>
+                  <text class="info-value">{{ telemetryStatus ? telemetryStatus.can2LastErrorCode : 0 }}</text>
+                </view>
+                <view class="info-row">
                   <text class="info-label">机械转向 CAN ID</text>
                   <text class="info-value">{{ telemetryStatus ? telemetryStatus.steerCanNodeId : appConfig.steerCanNodeId }}</text>
                 </view>
@@ -257,6 +293,16 @@
                   <text class="metric-label">转向目标</text>
                   <text class="metric-value">{{ telemetryStatus ? telemetryStatus.steerTargetRpm : 0 }}</text>
                   <text class="metric-unit">rpm</text>
+                </view>
+                <view class="metric-card">
+                  <text class="metric-label">目标转向角</text>
+                  <text class="metric-value">{{ telemetryStatus ? Number(telemetryStatus.steerTargetAngleDeg || 0).toFixed(1) : '0.0' }}</text>
+                  <text class="metric-unit">deg</text>
+                </view>
+                <view class="metric-card">
+                  <text class="metric-label">实际转向角</text>
+                  <text class="metric-value">{{ telemetryStatus ? Number(telemetryStatus.steerActualAngleDeg || 0).toFixed(1) : '0.0' }}</text>
+                  <text class="metric-unit">deg</text>
                 </view>
                 <view class="metric-card">
                   <text class="metric-label">油门 ADC</text>
@@ -696,6 +742,12 @@ export default {
       stopCommandBusy: false,
       remoteCommandLock: false,
       savingConfig: false,
+      lastFaultPopupKey: '',
+      lastSafetySnapshot: {
+        softStopActive: false,
+        emergencyStopActive: false,
+        hardwareEstopActive: false
+      },
       lastStatusQueryAt: 0,
       lastMetaQueryAt: 0,
       draftConfig: {
@@ -777,10 +829,23 @@ export default {
     hardwareEstopActive() {
       return !!(this.telemetryStatus && this.telemetryStatus.hardwareEstopActive);
     },
+    outputsLockedByFault() {
+      return !!(this.telemetryStatus && this.telemetryStatus.outputsLockedByFault);
+    },
+    faultCode() {
+      return String((this.telemetryStatus && this.telemetryStatus.faultCode) || 'none');
+    },
+    faultMessageZh() {
+      return String((this.telemetryStatus && this.telemetryStatus.faultMessageZh) || '');
+    },
     joystickLocked() {
-      return this.softStopActive || this.emergencyStopActive || this.hardwareEstopActive;
+      return this.softStopActive || this.emergencyStopActive || this.hardwareEstopActive || this.outputsLockedByFault;
     },
     controlLockText() {
+      if (this.outputsLockedByFault) {
+        return this.faultMessageZh || '通信或反馈故障已锁停';
+      }
+
       if (this.hardwareEstopActive) {
         return '硬件急停已触发';
       }
@@ -885,6 +950,8 @@ export default {
         this.bridgeState = getBridgeState();
         this.connectedProfile = getConnectedProfile();
         this.sessionState = syncSessionFromBridgeState(this.bridgeState);
+        this.maybePopupSafetyTransitions();
+        this.maybePopupFaultTransition();
 
         const now = Date.now();
         if (this.bridgeState.clientConnected && (now - this.lastStatusQueryAt) > 1000) {
@@ -915,7 +982,7 @@ export default {
 
         this.tickReleaseRamp();
         this.sendCurrentControlFrame();
-      }, 90);
+      }, 20);
     },
     requestSnapshot() {
       sendJsonCommand(createGetCapabilitiesCommand());
@@ -984,6 +1051,64 @@ export default {
         content: '请停车后再试。',
         showCancel: false
       });
+    },
+    maybePopupFaultTransition() {
+      if (!this.telemetryStatus) {
+        return;
+      }
+
+      const faultCode = String(this.telemetryStatus.faultCode || 'none');
+      if (faultCode === 'none') {
+        this.lastFaultPopupKey = '';
+        return;
+      }
+
+      const popupKey = [
+        faultCode,
+        String(this.telemetryStatus.faultDomain || 'none'),
+        String(this.telemetryStatus.faultMessageZh || ''),
+        this.telemetryStatus.canRecoveryActive ? '1' : '0'
+      ].join('|');
+
+      if (popupKey === this.lastFaultPopupKey) {
+        return;
+      }
+
+      this.lastFaultPopupKey = popupKey;
+      uni.showModal({
+        title: '车辆安全告警',
+        content: this.telemetryStatus.faultMessageZh || '检测到通信或反馈故障，请检查车辆状态。',
+        showCancel: false
+      });
+    },
+    maybePopupSafetyTransitions() {
+      const nextSnapshot = {
+        softStopActive: this.softStopActive,
+        emergencyStopActive: this.emergencyStopActive,
+        hardwareEstopActive: this.hardwareEstopActive
+      };
+
+      if (nextSnapshot.hardwareEstopActive && !this.lastSafetySnapshot.hardwareEstopActive) {
+        uni.showModal({
+          title: '硬件急停已触发',
+          content: '检测到 STM32 急停输入已触发，车辆已进入最高优先级急停状态。',
+          showCancel: false
+        });
+      } else if (nextSnapshot.emergencyStopActive && !this.lastSafetySnapshot.emergencyStopActive) {
+        uni.showModal({
+          title: '车辆已急停',
+          content: '当前已进入远程或本地急停状态，请确认车辆完全停止后再恢复控制。',
+          showCancel: false
+        });
+      } else if (nextSnapshot.softStopActive && !this.lastSafetySnapshot.softStopActive) {
+        uni.showModal({
+          title: '车辆已缓停',
+          content: '当前已进入缓停状态，系统会优先停止驱动输出。',
+          showCancel: false
+        });
+      }
+
+      this.lastSafetySnapshot = nextSnapshot;
     },
     ensureVehicleStopped() {
       if (this.vehicleMoving) {

@@ -10,4 +10,6 @@
 ../Src/stm32f4xx_it.c:208:6:OTG_FS_IRQHandler	8	static
 ../Src/stm32f4xx_it.c:220:6:CAN1_RX0_IRQHandler	8	static
 ../Src/stm32f4xx_it.c:225:6:CAN2_RX0_IRQHandler	8	static
-../Src/stm32f4xx_it.c:230:6:USART1_IRQHandler	8	static
+../Src/stm32f4xx_it.c:230:6:CAN1_SCE_IRQHandler	8	static
+../Src/stm32f4xx_it.c:235:6:CAN2_SCE_IRQHandler	8	static
+../Src/stm32f4xx_it.c:240:6:USART1_IRQHandler	8	static

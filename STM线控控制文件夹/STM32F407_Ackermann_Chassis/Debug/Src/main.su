@@ -6,4 +6,4 @@
 ../Src/main.c:311:13:MX_USART1_UART_Init	8	static
 ../Src/main.c:344:13:MX_USART2_UART_Init	8	static
 ../Src/main.c:377:13:MX_GPIO_Init	40	static
-../Src/main.c:414:6:Error_Handler	4	static
+../Src/main.c:414:6:Error_Handler	4	static,ignoring_inline_asm

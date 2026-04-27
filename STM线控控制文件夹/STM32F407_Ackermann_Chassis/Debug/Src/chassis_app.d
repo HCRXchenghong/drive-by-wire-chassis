@@ -33,8 +33,9 @@ Src/chassis_app.o: ../Src/chassis_app.c ../Inc/chassis_app.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h \
  ../Inc/board_io.h ../Inc/can_transport.h ../Inc/drive_controller_mssd.h \
- ../Inc/ewm22_link.h ../Inc/steering_controller_mssc.h \
- ../Inc/usb_cdc_shell.h ../Inc/vehicle_config.h
+ ../Inc/can_transport.h ../Inc/ewm22_link.h \
+ ../Inc/steering_controller_mssc.h ../Inc/usb_cdc_shell.h \
+ ../Inc/vehicle_config.h
 ../Inc/chassis_app.h:
 ../Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -73,6 +74,7 @@ Src/chassis_app.o: ../Src/chassis_app.c ../Inc/chassis_app.h \
 ../Inc/board_io.h:
 ../Inc/can_transport.h:
 ../Inc/drive_controller_mssd.h:
+../Inc/can_transport.h:
 ../Inc/ewm22_link.h:
 ../Inc/steering_controller_mssc.h:
 ../Inc/usb_cdc_shell.h:
