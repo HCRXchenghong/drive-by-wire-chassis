@@ -17,6 +17,7 @@ export function syncSessionFromBridgeState(bridgeState) {
     updateAppConfig({
       chassisType: state.chassisStatus.chassisType,
       driveAxle: state.chassisStatus.driveAxle,
+      driveMaxRpm: state.chassisStatus.driveMaxRpm,
       steerCanNodeId: state.chassisStatus.steerCanNodeId,
       handwheelCanNodeId: state.chassisStatus.handwheelCanNodeId,
       leftDriveInverted: !!state.chassisStatus.leftDriveInverted,
@@ -33,6 +34,7 @@ export function syncSessionFromBridgeState(bridgeState) {
 
   if (state.statusData) {
     updateAppConfig({
+      driveMaxRpm: state.statusData.driveMaxRpm,
       steerCanNodeId: state.statusData.steerCanNodeId,
       handwheelCanNodeId: state.statusData.handwheelCanNodeId,
       leftDriveInverted: !!state.statusData.leftDriveInverted,

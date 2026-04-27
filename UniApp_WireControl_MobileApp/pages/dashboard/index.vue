@@ -75,6 +75,10 @@
                   <text class="info-label">线性方向盘 CAN ID</text>
                   <text class="info-value">{{ appConfig.handwheelCanNodeId || 2 }}</text>
                 </view>
+                <view class="info-row">
+                  <text class="info-label">最大驱动输出</text>
+                  <text class="info-value">{{ appConfig.driveMaxRpm || 500 }} RPM</text>
+                </view>
               </view>
             </view>
           </view>
@@ -105,6 +109,11 @@
                   <text class="metric-label">踏板模式</text>
                   <text class="metric-value metric-value-small">{{ formatPedalConfig(appConfig.pedalConfig) }}</text>
                   <text class="metric-unit">config</text>
+                </view>
+                <view class="metric-card">
+                  <text class="metric-label">最大驱动</text>
+                  <text class="metric-value">{{ appConfig.driveMaxRpm || 500 }}</text>
+                  <text class="metric-unit">rpm</text>
                 </view>
               </view>
             </view>
@@ -208,6 +217,10 @@
                 <view class="info-row">
                   <text class="info-label">右轮前进方向</text>
                   <text class="info-value">{{ formatDriveDirection(telemetryStatus ? telemetryStatus.rightDriveInverted : appConfig.rightDriveInverted) }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">当前最大驱动输出</text>
+                  <text class="info-value">{{ telemetryStatus ? telemetryStatus.driveMaxRpm : appConfig.driveMaxRpm }} RPM</text>
                 </view>
               </view>
             </view>
@@ -519,6 +532,11 @@
               </view>
 
               <view class="form-group">
+                <text class="form-label">最大驱动输出 (RPM)</text>
+                <input v-model="draftConfig.driveMaxRpm" class="number-input" type="number" />
+              </view>
+
+              <view class="form-group">
                 <text class="form-label">机械转向 CAN 节点号</text>
                 <input v-model="draftConfig.steerCanNodeId" class="number-input" type="number" />
               </view>
@@ -686,6 +704,7 @@ export default {
         frontTrackMm: '1280',
         wheelbaseMm: '1720',
         rearTrackMm: '1260',
+        driveMaxRpm: '500',
         steerCanNodeId: '1',
         handwheelCanNodeId: '2',
         leftDriveInverted: false,
@@ -913,6 +932,7 @@ export default {
         frontTrackMm: String(config.frontTrackMm || 1280),
         wheelbaseMm: String(config.wheelbaseMm || 1720),
         rearTrackMm: String(config.rearTrackMm || 1260),
+        driveMaxRpm: String(config.driveMaxRpm || 500),
         steerCanNodeId: String(config.steerCanNodeId || 1),
         handwheelCanNodeId: String(config.handwheelCanNodeId || 2),
         leftDriveInverted: !!config.leftDriveInverted,
@@ -928,6 +948,7 @@ export default {
         frontTrackMm: clamp(Number(this.draftConfig.frontTrackMm || 0), 100, 10000),
         wheelbaseMm: clamp(Number(this.draftConfig.wheelbaseMm || 0), 100, 10000),
         rearTrackMm: clamp(Number(this.draftConfig.rearTrackMm || 0), 100, 10000),
+        driveMaxRpm: clamp(Number(this.draftConfig.driveMaxRpm || 0), 50, 5000),
         steerCanNodeId: clamp(Number(this.draftConfig.steerCanNodeId || 0), 1, 0x7FF),
         handwheelCanNodeId: clamp(Number(this.draftConfig.handwheelCanNodeId || 0), 1, 0x7FF),
         leftDriveInverted: !!this.draftConfig.leftDriveInverted,

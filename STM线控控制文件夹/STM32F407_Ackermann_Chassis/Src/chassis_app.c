@@ -18,7 +18,9 @@
 #define DRIVE_CAN_NODE_ID 1U
 #define CONTROL_LOOP_PERIOD_MS 20U
 #define CONTROL_STEER_INPUT_LIMIT 1000
-#define CONTROL_MAX_DRIVE_RPM 500.0f
+#define CONTROL_DEFAULT_DRIVE_MAX_RPM 500U
+#define CONTROL_MIN_DRIVE_MAX_RPM 50U
+#define CONTROL_MAX_DRIVE_MAX_RPM 5000U
 #define CONTROL_MAX_STEER_RPM 80.0f
 #define CONTROL_MIN_TURN_RADIUS_MM 1500.0f
 #define CONTROL_TURN_RADIUS_WHEELBASE_SCALE 2.0f
@@ -521,6 +523,20 @@ static int32_t drive_direction_normalize_left_feedback_rpm(const vehicle_config_
                                                 (config != NULL) && (config->left_drive_inverted != 0U));
 }
 
+static float control_drive_max_rpm(const vehicle_config_t *config)
+{
+  uint16_t drive_max_rpm = CONTROL_DEFAULT_DRIVE_MAX_RPM;
+
+  if ((config != NULL) &&
+      (config->drive_max_rpm >= CONTROL_MIN_DRIVE_MAX_RPM) &&
+      (config->drive_max_rpm <= CONTROL_MAX_DRIVE_MAX_RPM))
+  {
+    drive_max_rpm = config->drive_max_rpm;
+  }
+
+  return (float)drive_max_rpm;
+}
+
 static float pedal_raw_to_normalized(uint16_t raw, uint16_t min_raw, uint16_t max_raw)
 {
   float range;
@@ -1000,7 +1016,7 @@ static void control_update_targets(void)
   }
 
   s_control_state.drive_command_mode = drive_command_mode;
-  s_control_state.drive_base_rpm = float_to_int32(demand * CONTROL_MAX_DRIVE_RPM);
+  s_control_state.drive_base_rpm = float_to_int32(demand * control_drive_max_rpm(config));
   steer_input = clamp_int32(steer_input, -CONTROL_STEER_INPUT_LIMIT, CONTROL_STEER_INPUT_LIMIT);
   steer_norm = (float)steer_input / (float)CONTROL_STEER_INPUT_LIMIT;
 
@@ -1147,7 +1163,7 @@ static void publish_remote_status_if_needed(void)
       "\"g\":\"%s\",\"oe\":%u,\"src\":\"%s\",\"rg\":\"%s\",\"ra\":%u,\"rv\":%u,"
       "\"co\":\"%s\",\"rm\":\"%s\",\"rto\":%u,\"lca\":%u,\"mov\":%u,\"mvc\":%u,\"mva\":%u,"
       "\"ssa\":%u,\"esa\":%u,\"hea\":%u,"
-      "\"ft\":%u,\"wb\":%u,\"rt\":%u,\"sid\":%u,\"hid\":%u,\"ls\":%u,\"lsd\":%u,\"ldi\":%u,\"rdi\":%u,"
+      "\"ft\":%u,\"wb\":%u,\"rt\":%u,\"dmr\":%u,\"sid\":%u,\"hid\":%u,\"ls\":%u,\"lsd\":%u,\"ldi\":%u,\"rdi\":%u,"
       "\"thr\":%u,\"brk\":%u,"
       "\"lr\":%ld,\"rr\":%ld,\"lar\":%ld,\"rar\":%ld,\"lav\":%u,\"rav\":%u,\"dfv\":%u,"
       "\"laa\":%lu,\"raa\":%lu,\"sr\":%d,\"dc\":%u,\"sc\":%u,"
@@ -1175,6 +1191,7 @@ static void publish_remote_status_if_needed(void)
       (unsigned int)config->front_track_mm,
       (unsigned int)config->wheelbase_mm,
       (unsigned int)config->rear_track_mm,
+      (unsigned int)config->drive_max_rpm,
       (unsigned int)config->steer_can_node_id,
       (unsigned int)config->handwheel_can_node_id,
       (unsigned int)config->linear_steering_enabled,
@@ -1256,7 +1273,7 @@ static void reply_config(void)
 
   (void)reply_printf(
       "{\"cmd\":\"config_ack\",\"ok\":true,"
-      "\"front_track_mm\":%u,\"wheelbase_mm\":%u,\"rear_track_mm\":%u,"
+      "\"front_track_mm\":%u,\"wheelbase_mm\":%u,\"rear_track_mm\":%u,\"drive_max_rpm\":%u,"
       "\"steer_can_node_id\":%u,\"handwheel_can_node_id\":%u,"
       "\"chassis_type\":\"%s\",\"drive_axle\":\"%s\",\"drive_mode\":\"%s\","
       "\"linear_steering_enabled\":%s,\"pedal_config\":\"%s\","
@@ -1265,6 +1282,7 @@ static void reply_config(void)
       (unsigned int)config->front_track_mm,
       (unsigned int)config->wheelbase_mm,
       (unsigned int)config->rear_track_mm,
+      (unsigned int)config->drive_max_rpm,
       (unsigned int)config->steer_can_node_id,
       (unsigned int)config->handwheel_can_node_id,
       vehicle_config_chassis_type_name((chassis_type_t)config->chassis_type),
@@ -1353,7 +1371,7 @@ static void reply_status(void)
   (void)reply_printf(
       "{\"cmd\":\"status_ack\",\"ok\":true,"
       "\"gear\":\"%s\",\"throttle_raw\":%u,\"brake_raw\":%u,"
-      "\"chassis_type\":\"%s\",\"drive_axle\":\"%s\",\"drive_mode\":\"%s\","
+      "\"chassis_type\":\"%s\",\"drive_axle\":\"%s\",\"drive_mode\":\"%s\",\"drive_max_rpm\":%u,"
       "\"control_enabled\":%s,\"steer_input\":%ld,"
       "\"drive_base_rpm\":%ld,\"right_target_rpm\":%ld,\"left_target_rpm\":%ld,"
       "\"right_actual_rpm\":%ld,\"left_actual_rpm\":%ld,"
@@ -1383,6 +1401,7 @@ static void reply_status(void)
       vehicle_config_chassis_type_name((chassis_type_t)config->chassis_type),
       vehicle_config_drive_axle_name((drive_axle_t)config->drive_axle),
       vehicle_config_drive_mode_name(mode),
+      (unsigned int)config->drive_max_rpm,
       s_control_state.control_enabled ? "true" : "false",
       (long)s_control_state.steer_input,
       (long)s_control_state.drive_base_rpm,
@@ -1597,6 +1616,11 @@ static void handle_set_config(const char *line)
   if (json_get_uint32(line, "\"rear_track_mm\"", &value))
   {
     config.rear_track_mm = (uint16_t)value;
+  }
+
+  if (json_get_uint32(line, "\"drive_max_rpm\"", &value))
+  {
+    config.drive_max_rpm = (uint16_t)value;
   }
 
   if (json_get_uint32(line, "\"steer_can_node_id\"", &value))

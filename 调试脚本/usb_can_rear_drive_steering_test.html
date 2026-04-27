@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>USB-CAN 后驱双驱轮与前转向测试</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --soft: #f8fbff;
+      --line: #dbe3ef;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --orange: #ea580c;
+      --red: #dc2626;
+      --shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .page {
+      width: 100%;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    .hero {
+      margin-bottom: 18px;
+      padding: 22px 24px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.14), transparent 32%), var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.2;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .panel {
+      margin-top: 16px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 20px;
+    }
+
+    .panel-note {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .subcards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 14px;
+    }
+
+    .subcard {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--soft);
+    }
+
+    .subcard h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      min-height: 42px;
+      padding: 10px 12px;
+      border: 1px solid #c7d2e1;
+      border-radius: 12px;
+      background: #fbfdff;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .inline-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 0 12px;
+      border: 1px solid #c7d2e1;
+      border-radius: 12px;
+      background: #fbfdff;
+      font-size: 14px;
+    }
+
+    .inline-check input {
+      width: 16px;
+      height: 16px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      min-height: 42px;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 12px;
+      background: #e5eefc;
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      filter: brightness(0.97);
+    }
+
+    .primary { background: #dbeafe; color: #1d4ed8; }
+    .success { background: #dcfce7; color: #15803d; }
+    .warn { background: #ffedd5; color: #c2410c; }
+    .danger { background: #fee2e2; color: #b91c1c; }
+    .dark { background: #e5e7eb; color: #111827; }
+
+    .status-bar {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .badge {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+      font-size: 14px;
+    }
+
+    .badge strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .ok {
+      color: var(--green);
+    }
+
+    .bad {
+      color: var(--red);
+    }
+
+    .row-title {
+      margin-top: 14px;
+      margin-bottom: 8px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .log {
+      width: 100%;
+      min-height: 320px;
+      margin-top: 10px;
+      padding: 14px;
+      border: 1px solid #111827;
+      border-radius: 14px;
+      background: #0f172a;
+      color: #d1fae5;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    code {
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(37, 99, 235, 0.08);
+      color: #1d4ed8;
+    }
+
+    @media (max-width: 900px) {
+      .two-col,
+      .subcards,
+      .status-bar {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>USB-CAN 后驱双驱轮 / 前转向测试</h1>
+      <p>这个页面只做两类真实调试：后驱双驱轮 MSSD 控制器测试，以及前转向 MSSC 控制器测试。现在已按你的接法改成两个独立 COM 口：驱动控制器一个 USB-CAN，转向控制器一个 USB-CAN，互不抢占、互不混线。</p>
+    </section>
+
+    <section class="panel">
+      <h2>1. 双 USB-CAN 连接</h2>
+      <p class="panel-note">驱动侧只接后驱双驱轮 MSSD 控制器，转向侧只接前转向 MSSC 控制器。两个适配器都按 SLCAN 方式通过 Web Serial 连接，默认串口 115200，默认 CAN 速率 <code>S6 / 500 kbps</code>。</p>
+
+      <div class="subcards">
+        <div class="subcard">
+          <h3>驱动 USB-CAN（MSSD）</h3>
+          <div class="grid">
+            <div class="field">
+              <label for="driveSlcanBitrate">SLCAN CAN 速率命令</label>
+              <select id="driveSlcanBitrate">
+                <option value="S6" selected>500 kbps / S6</option>
+                <option value="S5">250 kbps / S5</option>
+                <option value="S4">125 kbps / S4</option>
+                <option value="S8">1 Mbps / S8</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="primary" id="driveConnectBtn">选择驱动串口</button>
+            <button class="dark" id="driveReopenBtn">重新打开驱动 CAN</button>
+            <button class="dark" id="driveVersionBtn">读取驱动适配器版本</button>
+            <button class="danger" id="driveDisconnectBtn">断开驱动串口</button>
+          </div>
+          <div class="status-bar">
+            <div class="badge"><strong>驱动连接状态</strong><span id="driveConnectState" class="bad">未连接</span></div>
+            <div class="badge"><strong>驱动串口</strong><span id="driveSerialState">未选择</span></div>
+            <div class="badge"><strong>驱动适配器版本</strong><span id="driveVersionState">--</span></div>
+          </div>
+        </div>
+
+        <div class="subcard">
+          <h3>转向 USB-CAN（MSSC）</h3>
+          <div class="grid">
+            <div class="field">
+              <label for="steerSlcanBitrate">SLCAN CAN 速率命令</label>
+              <select id="steerSlcanBitrate">
+                <option value="S6" selected>500 kbps / S6</option>
+                <option value="S5">250 kbps / S5</option>
+                <option value="S4">125 kbps / S4</option>
+                <option value="S8">1 Mbps / S8</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="primary" id="steerConnectBtn">选择转向串口</button>
+            <button class="dark" id="steerReopenBtn">重新打开转向 CAN</button>
+            <button class="dark" id="steerVersionBtn">读取转向适配器版本</button>
+            <button class="danger" id="steerDisconnectBtn">断开转向串口</button>
+            <button class="dark" id="clearLogBtn">清空日志</button>
+          </div>
+          <div class="status-bar">
+            <div class="badge"><strong>转向连接状态</strong><span id="steerConnectState" class="bad">未连接</span></div>
+            <div class="badge"><strong>转向串口</strong><span id="steerSerialState">未选择</span></div>
+            <div class="badge"><strong>转向适配器版本</strong><span id="steerVersionState">--</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="two-col">
+      <section class="panel">
+        <h2>2. 后驱双驱轮 MSSD</h2>
+        <p class="panel-note">右轮目标转速寄存器使用 <code>0x39 / 0x3A</code>，左轮目标转速寄存器使用 <code>0x3D / 0x3E</code>。右轮真实转速读取 <code>0x09 / 0x0A</code>，左轮真实转速读取 <code>0x14 / 0x15</code>。本页会把发包、停轮、急停、回读都固定走驱动 USB-CAN。</p>
+
+        <div class="grid">
+          <div class="field">
+            <label for="driveNodeId">驱动 CAN ID</label>
+            <input id="driveNodeId" type="number" min="1" max="2047" value="1">
+          </div>
+          <div class="field">
+            <label for="driveRpm">测试 RPM（正值）</label>
+            <input id="driveRpm" type="number" min="1" max="5000" value="300">
+          </div>
+          <div class="field">
+            <label for="driveDuration">测试时长（秒）</label>
+            <input id="driveDuration" type="number" min="0.1" step="0.1" max="60" value="1.5">
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <div class="inline-check"><input id="driveAutoRead" type="checkbox" checked><span>测试前后自动读取轮速</span></div>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <div class="inline-check"><input id="driveUseEstop" type="checkbox"><span>普通停止后追加急停</span></div>
+          </div>
+        </div>
+
+        <div class="row-title">快捷测试</div>
+        <div class="actions">
+          <button class="success" id="bothForwardBtn">双轮正转测试</button>
+          <button class="warn" id="bothReverseBtn">双轮反转测试</button>
+          <button class="success" id="rightForwardBtn">右轮正转测试</button>
+          <button class="warn" id="rightReverseBtn">右轮反转测试</button>
+          <button class="success" id="leftForwardBtn">左轮正转测试</button>
+          <button class="warn" id="leftReverseBtn">左轮反转测试</button>
+        </div>
+
+        <div class="row-title">自定义左右轮 RPM</div>
+        <div class="grid">
+          <div class="field">
+            <label for="rightCustomRpm">右轮 RPM</label>
+            <input id="rightCustomRpm" type="number" min="-5000" max="5000" value="300">
+          </div>
+          <div class="field">
+            <label for="leftCustomRpm">左轮 RPM</label>
+            <input id="leftCustomRpm" type="number" min="-5000" max="5000" value="300">
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary" id="customDriveTestBtn">执行自定义双轮测试</button>
+          <button class="dark" id="readDriveFeedbackBtn">读取实际轮速</button>
+          <button class="dark" id="normalStopDriveBtn">普通停止</button>
+          <button class="danger" id="emergencyStopDriveBtn">急停</button>
+        </div>
+
+        <div class="status-bar">
+          <div class="badge"><strong>右轮实际 RPM</strong><span id="rightActualRpm">--</span></div>
+          <div class="badge"><strong>左轮实际 RPM</strong><span id="leftActualRpm">--</span></div>
+          <div class="badge"><strong>驱动反馈帧数</strong><span id="driveFeedbackCount">0</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>3. 前转向 MSSC</h2>
+        <p class="panel-note">转向速度命令使用 <code>0x0031</code>，停止使用 <code>0x0030</code>。进入速度闭环前会先写入 <code>0x006B = 0</code> 和 <code>0x006C = 控制模式</code>。位置回读使用 <code>0x0013 / 0x0014</code>，全部固定走转向 USB-CAN。</p>
+
+        <div class="grid">
+          <div class="field">
+            <label for="steerNodeId">转向 CAN ID</label>
+            <input id="steerNodeId" type="number" min="1" max="2047" value="1">
+          </div>
+          <div class="field">
+            <label for="steerRpm">转向测试 RPM（正值）</label>
+            <input id="steerRpm" type="number" min="1" max="5000" value="60">
+          </div>
+          <div class="field">
+            <label for="steerDuration">测试时长（秒）</label>
+            <input id="steerDuration" type="number" min="0.1" step="0.1" max="60" value="1.0">
+          </div>
+          <div class="field">
+            <label for="steerControlMode">控制模式</label>
+            <input id="steerControlMode" type="number" min="0" max="11" value="10">
+          </div>
+          <div class="field">
+            <label for="steerStopMode">停止模式</label>
+            <select id="steerStopMode">
+              <option value="0" selected>0：普通停止</option>
+              <option value="1">1：紧急制动</option>
+              <option value="2">2：自由停</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <div class="inline-check"><input id="steerAutoRead" type="checkbox" checked><span>停止后自动读位置</span></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="dark" id="prepareSteerBtn">准备速度闭环</button>
+          <button class="success" id="steerLeftBtn">左转测试（负 RPM）</button>
+          <button class="warn" id="steerRightBtn">右转测试（正 RPM）</button>
+          <button class="primary" id="customSteerBtn">按输入方向发送</button>
+          <button class="dark" id="stopSteerBtn">停止转向</button>
+          <button class="dark" id="readSteerPosBtn">读取转向位置</button>
+        </div>
+
+        <div class="grid" style="margin-top: 12px;">
+          <div class="field">
+            <label for="steerSignedRpm">自定义 signed RPM（左负右正）</label>
+            <input id="steerSignedRpm" type="number" min="-5000" max="5000" value="60">
+          </div>
+        </div>
+
+        <div class="status-bar">
+          <div class="badge"><strong>转向位置原始值</strong><span id="steerPosRaw">--</span></div>
+          <div class="badge"><strong>位置反馈帧数</strong><span id="steerFeedbackCount">0</span></div>
+          <div class="badge"><strong>方向说明</strong><span id="steerDirectionHint">左负 / 右正</span></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2>4. 通讯日志</h2>
+      <p class="panel-note">这里会分别记录驱动口和转向口的 SLCAN 指令、CAN 发包以及收到的原始回包，方便现场判断是没发出去、发错口、还是控制器没回包。</p>
+      <div id="log" class="log"></div>
+    </section>
+  </div>
+
+  <script>
+    const textEncoder = new TextEncoder();
+
+    function createAdapterState() {
+      return {
+        port: null,
+        reader: null,
+        writer: null,
+        keepReading: false,
+        readBuffer: "",
+        readLoopPromise: null
+      };
+    }
+
+    const state = {
+      adapters: {
+        drive: createAdapterState(),
+        steer: createAdapterState()
+      },
+      driveWords: {},
+      steerWords: {},
+      driveFeedbackCount: 0,
+      steerFeedbackCount: 0,
+      driveTimer: null,
+      steerTimer: null
+    };
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function nowText() {
+      return new Date().toLocaleTimeString("zh-CN", { hour12: false });
+    }
+
+    function log(message, level = "info") {
+      const box = $("log");
+      const prefix = level === "error" ? "[ERR]" : level === "warn" ? "[WRN]" : "[INF]";
+      box.textContent += `${nowText()} ${prefix} ${message}\n`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function toHex(value, width) {
+      return Number(value >>> 0).toString(16).toUpperCase().padStart(width, "0");
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function kindLabel(kind) {
+      return kind === "drive" ? "驱动" : "转向";
+    }
+
+    function getAdapter(kind) {
+      return state.adapters[kind];
+    }
+
+    function clearAdapterTimer(kind) {
+      if (kind === "drive") {
+        clearTimeout(state.driveTimer);
+        state.driveTimer = null;
+        return;
+      }
+
+      clearTimeout(state.steerTimer);
+      state.steerTimer = null;
+    }
+
+    function setConnectState(kind, text, ok) {
+      const el = $(`${kind}ConnectState`);
+      el.textContent = text;
+      el.className = ok ? "ok" : "bad";
+    }
+
+    function setSerialState(kind, text) {
+      $(`${kind}SerialState`).textContent = text;
+    }
+
+    function setVersionState(kind, text) {
+      $(`${kind}VersionState`).textContent = text || "--";
+    }
+
+    function getSlcanBitrate(kind) {
+      return $(`${kind}SlcanBitrate`).value || "S6";
+    }
+
+    function ensureConnected(kind) {
+      const adapter = getAdapter(kind);
+      if (!adapter.port || !adapter.writer) {
+        throw new Error(`${kindLabel(kind)} USB-CAN 尚未连接。`);
+      }
+    }
+
+    function getDriveNodeId() {
+      return clamp(parseInt($("driveNodeId").value || "1", 10) || 1, 1, 0x7ff);
+    }
+
+    function getSteerNodeId() {
+      return clamp(parseInt($("steerNodeId").value || "1", 10) || 1, 1, 0x7ff);
+    }
+
+    function getDriveMagnitude() {
+      return clamp(Math.abs(parseInt($("driveRpm").value || "0", 10) || 0), 1, 5000);
+    }
+
+    function getDriveDurationMs() {
+      return clamp(Math.round((parseFloat($("driveDuration").value || "0") || 0) * 1000), 100, 60000);
+    }
+
+    function getSteerMagnitude() {
+      return clamp(Math.abs(parseInt($("steerRpm").value || "0", 10) || 0), 1, 5000);
+    }
+
+    function getSteerDurationMs() {
+      return clamp(Math.round((parseFloat($("steerDuration").value || "0") || 0) * 1000), 100, 60000);
+    }
+
+    function getSteerControlMode() {
+      return clamp(parseInt($("steerControlMode").value || "10", 10) || 10, 0, 11);
+    }
+
+    function getSteerStopMode() {
+      return clamp(parseInt($("steerStopMode").value || "0", 10) || 0, 0, 2);
+    }
+
+    function toUnsigned16(value) {
+      return value < 0 ? (0x10000 + value) & 0xffff : value & 0xffff;
+    }
+
+    function toUnsigned32(value) {
+      return value < 0 ? (0x100000000 + value) >>> 0 : value >>> 0;
+    }
+
+    function toSigned32(raw) {
+      return raw > 0x7fffffff ? raw - 0x100000000 : raw;
+    }
+
+    function buildWrite16Data(register, value) {
+      const index = 0x4000 + register;
+      const raw = toUnsigned16(value);
+      return [
+        0x22,
+        index & 0xff,
+        (index >> 8) & 0xff,
+        0x00,
+        raw & 0xff,
+        (raw >> 8) & 0xff,
+        0x00,
+        0x00
+      ];
+    }
+
+    function buildWrite32SpeedData(register, rpm) {
+      const index = 0x4000 + register;
+      const raw = toUnsigned32(rpm);
+      const highWord = (raw >>> 16) & 0xffff;
+      const lowWord = raw & 0xffff;
+      return [
+        0x24,
+        index & 0xff,
+        (index >> 8) & 0xff,
+        0x00,
+        highWord & 0xff,
+        (highWord >> 8) & 0xff,
+        lowWord & 0xff,
+        (lowWord >> 8) & 0xff
+      ];
+    }
+
+    function buildRead16Data(register) {
+      const index = 0x4000 + register;
+      return [
+        0x40,
+        index & 0xff,
+        (index >> 8) & 0xff,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00
+      ];
+    }
+
+    function buildSlcanFrame(canId, data) {
+      return `t${toHex(canId, 3)}${data.length.toString(16).toUpperCase()}${data.map((byte) => toHex(byte, 2)).join("")}`;
+    }
+
+    function parseSlcanFrame(line) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("t") || trimmed.length < 5) {
+        return null;
+      }
+
+      try {
+        const canId = parseInt(trimmed.slice(1, 4), 16);
+        const dlc = parseInt(trimmed.slice(4, 5), 16);
+        const payload = trimmed.slice(5, 5 + dlc * 2);
+        if (payload.length < dlc * 2) {
+          return null;
+        }
+
+        const data = [];
+        for (let i = 0; i < dlc; i += 1) {
+          data.push(parseInt(payload.slice(i * 2, i * 2 + 2), 16));
+        }
+
+        return { canId, dlc, data, raw: trimmed };
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function updateDriveFeedbackUi() {
+      const rightReady = Number.isInteger(state.driveWords.rightHigh) && Number.isInteger(state.driveWords.rightLow);
+      const leftReady = Number.isInteger(state.driveWords.leftHigh) && Number.isInteger(state.driveWords.leftLow);
+
+      $("rightActualRpm").textContent = rightReady
+        ? String(toSigned32((((state.driveWords.rightHigh & 0xffff) << 16) >>> 0) | (state.driveWords.rightLow & 0xffff)))
+        : "--";
+
+      $("leftActualRpm").textContent = leftReady
+        ? String(toSigned32((((state.driveWords.leftHigh & 0xffff) << 16) >>> 0) | (state.driveWords.leftLow & 0xffff)))
+        : "--";
+
+      $("driveFeedbackCount").textContent = String(state.driveFeedbackCount);
+    }
+
+    function updateSteerFeedbackUi() {
+      const ready = Number.isInteger(state.steerWords.high) && Number.isInteger(state.steerWords.low);
+      $("steerPosRaw").textContent = ready
+        ? String(toSigned32((((state.steerWords.high & 0xffff) << 16) >>> 0) | (state.steerWords.low & 0xffff)))
+        : "--";
+      $("steerFeedbackCount").textContent = String(state.steerFeedbackCount);
+    }
+
+    function handleCanFrame(kind, frame) {
+      if (!frame || frame.dlc < 6 || frame.data[0] !== 0x42 || frame.data[3] !== 0x00) {
+        return;
+      }
+
+      const index = ((frame.data[2] << 8) | frame.data[1]) & 0xffff;
+      const wordValue = ((frame.data[5] << 8) | frame.data[4]) & 0xffff;
+
+      if (kind === "drive") {
+        if (frame.canId !== getDriveNodeId()) {
+          return;
+        }
+
+        if (index === 0x4009) {
+          state.driveWords.rightHigh = wordValue;
+          state.driveFeedbackCount += 1;
+          updateDriveFeedbackUi();
+          return;
+        }
+
+        if (index === 0x400A) {
+          state.driveWords.rightLow = wordValue;
+          state.driveFeedbackCount += 1;
+          updateDriveFeedbackUi();
+          return;
+        }
+
+        if (index === 0x4014) {
+          state.driveWords.leftHigh = wordValue;
+          state.driveFeedbackCount += 1;
+          updateDriveFeedbackUi();
+          return;
+        }
+
+        if (index === 0x4015) {
+          state.driveWords.leftLow = wordValue;
+          state.driveFeedbackCount += 1;
+          updateDriveFeedbackUi();
+        }
+
+        return;
+      }
+
+      if (frame.canId !== getSteerNodeId()) {
+        return;
+      }
+
+      if (index === 0x4013) {
+        state.steerWords.high = wordValue;
+        state.steerFeedbackCount += 1;
+        updateSteerFeedbackUi();
+        return;
+      }
+
+      if (index === 0x4014) {
+        state.steerWords.low = wordValue;
+        state.steerFeedbackCount += 1;
+        updateSteerFeedbackUi();
+      }
+    }
+
+    function consumeIncomingText(kind, chunk) {
+      const adapter = getAdapter(kind);
+      adapter.readBuffer += chunk;
+      const parts = adapter.readBuffer.split(/\r\n|\n|\r/);
+      adapter.readBuffer = parts.pop() || "";
+
+      parts.forEach((line) => {
+        if (!line) {
+          return;
+        }
+
+        log(`[${kindLabel(kind)}] RX ${line}`);
+        if (line.startsWith("V")) {
+          setVersionState(kind, line);
+        }
+
+        const frame = parseSlcanFrame(line);
+        if (frame) {
+          handleCanFrame(kind, frame);
+        }
+      });
+    }
+
+    function startReadLoop(kind) {
+      const adapter = getAdapter(kind);
+      if (!adapter.port || !adapter.port.readable) {
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      const reader = adapter.port.readable.getReader();
+      adapter.reader = reader;
+
+      adapter.readLoopPromise = (async () => {
+        try {
+          while (adapter.keepReading) {
+            const { value, done } = await reader.read();
+            if (done) {
+              break;
+            }
+
+            if (value) {
+              consumeIncomingText(kind, decoder.decode(value, { stream: true }));
+            }
+          }
+        } catch (error) {
+          if (adapter.keepReading) {
+            log(`${kindLabel(kind)} 串口读取异常: ${error.message}`, "error");
+          }
+        } finally {
+          try {
+            reader.releaseLock();
+          } catch (error) {
+            // Ignore release errors during disconnect.
+          }
+
+          if (adapter.reader === reader) {
+            adapter.reader = null;
+          }
+
+          adapter.readLoopPromise = null;
+        }
+      })();
+    }
+
+    async function sendLine(kind, command, label = "SLCAN") {
+      ensureConnected(kind);
+      const adapter = getAdapter(kind);
+      log(`[${kindLabel(kind)}] TX ${label}: ${command}`);
+      await adapter.writer.write(textEncoder.encode(`${command}\r`));
+    }
+
+    async function sendCanFrame(kind, canId, data, label) {
+      const frame = buildSlcanFrame(canId, data);
+      log(`[${kindLabel(kind)}] CAN 0x${toHex(canId, 3)} ${label} -> ${data.map((byte) => toHex(byte, 2)).join(" ")}`);
+      await sendLine(kind, frame, "CAN");
+    }
+
+    async function queryAdapterVersion(kind) {
+      await sendLine(kind, "V", "SLCAN");
+      await sleep(120);
+    }
+
+    async function openCanBus(kind) {
+      await sendLine(kind, "C", "SLCAN");
+      await sleep(50);
+      await sendLine(kind, getSlcanBitrate(kind), "SLCAN");
+      await sleep(50);
+      await sendLine(kind, "O", "SLCAN");
+      await sleep(80);
+    }
+
+    async function teardownAdapter(kind, suppressLog = false) {
+      const adapter = getAdapter(kind);
+      clearAdapterTimer(kind);
+      adapter.keepReading = false;
+
+      try {
+        if (adapter.writer) {
+          log(`[${kindLabel(kind)}] TX SLCAN: C`);
+          await adapter.writer.write(textEncoder.encode("C\r"));
+        }
+      } catch (error) {
+        if (!suppressLog) {
+          log(`${kindLabel(kind)} 关闭 CAN 通道失败: ${error.message}`, "warn");
+        }
+      }
+
+      if (adapter.reader) {
+        try {
+          await adapter.reader.cancel();
+        } catch (error) {
+          if (!suppressLog) {
+            log(`${kindLabel(kind)} 取消读取失败: ${error.message}`, "warn");
+          }
+        }
+      }
+
+      if (adapter.readLoopPromise) {
+        try {
+          await adapter.readLoopPromise;
+        } catch (error) {
+          if (!suppressLog) {
+            log(`${kindLabel(kind)} 等待读取线程结束失败: ${error.message}`, "warn");
+          }
+        }
+      }
+
+      if (adapter.writer) {
+        try {
+          adapter.writer.releaseLock();
+        } catch (error) {
+          // Ignore release errors.
+        }
+        adapter.writer = null;
+      }
+
+      if (adapter.port) {
+        try {
+          await adapter.port.close();
+        } catch (error) {
+          if (!suppressLog) {
+            log(`${kindLabel(kind)} 关闭串口失败: ${error.message}`, "warn");
+          }
+        }
+        adapter.port = null;
+      }
+
+      adapter.reader = null;
+      adapter.readBuffer = "";
+      setConnectState(kind, "未连接", false);
+      setSerialState(kind, "未选择");
+      setVersionState(kind, "--");
+
+      if (!suppressLog) {
+        log(`${kindLabel(kind)} USB-CAN 已断开。`);
+      }
+    }
+
+    async function connectSerial(kind) {
+      if (!("serial" in navigator)) {
+        throw new Error("当前浏览器不支持 Web Serial，请使用 Edge 或 Chrome。");
+      }
+
+      const adapter = getAdapter(kind);
+      if (adapter.port) {
+        log(`${kindLabel(kind)} 串口已经连接，若要更换请先断开。`, "warn");
+        return;
+      }
+
+      try {
+        adapter.port = await navigator.serial.requestPort();
+        await adapter.port.open({
+          baudRate: 115200,
+          dataBits: 8,
+          stopBits: 1,
+          parity: "none",
+          flowControl: "none",
+          bufferSize: 4096
+        });
+
+        adapter.writer = adapter.port.writable.getWriter();
+        adapter.keepReading = true;
+        adapter.readBuffer = "";
+        startReadLoop(kind);
+
+        await openCanBus(kind);
+        await queryAdapterVersion(kind);
+
+        setConnectState(kind, "已连接", true);
+        setSerialState(kind, "115200 / Web Serial");
+        log(`${kindLabel(kind)} USB-CAN 已连接并打开 CAN 通道。`);
+      } catch (error) {
+        await teardownAdapter(kind, true);
+        throw new Error(`${kindLabel(kind)} USB-CAN 连接失败: ${error.message}`);
+      }
+    }
+
+    async function disconnectSerial(kind) {
+      await teardownAdapter(kind, false);
+    }
+
+    async function readDriveFeedback() {
+      state.driveWords = {};
+      state.driveFeedbackCount = 0;
+      updateDriveFeedbackUi();
+
+      const canId = getDriveNodeId();
+      const regs = [0x09, 0x0A, 0x14, 0x15];
+      for (const reg of regs) {
+        await sendCanFrame("drive", canId, buildRead16Data(reg), `读取驱动反馈 0x${toHex(reg, 2)}`);
+        await sleep(18);
+      }
+    }
+
+    async function sendDriveNormalStop() {
+      clearAdapterTimer("drive");
+      const canId = getDriveNodeId();
+      await sendCanFrame("drive", canId, buildWrite32SpeedData(0x39, 0), "右轮 0 RPM");
+      await sleep(12);
+      await sendCanFrame("drive", canId, buildWrite32SpeedData(0x3D, 0), "左轮 0 RPM");
+    }
+
+    async function sendDriveEmergencyStop() {
+      clearAdapterTimer("drive");
+      const canId = getDriveNodeId();
+      await sendCanFrame("drive", canId, buildWrite16Data(0x38, 1), "右轮急停");
+      await sleep(12);
+      await sendCanFrame("drive", canId, buildWrite16Data(0x3C, 1), "左轮急停");
+    }
+
+    async function sendDriveRpm(rightRpm, leftRpm, title) {
+      const canId = getDriveNodeId();
+      await sendCanFrame("drive", canId, buildWrite32SpeedData(0x39, rightRpm), `${title} / 右轮 ${rightRpm} RPM`);
+      await sleep(12);
+      await sendCanFrame("drive", canId, buildWrite32SpeedData(0x3D, leftRpm), `${title} / 左轮 ${leftRpm} RPM`);
+    }
+
+    async function runDriveTimedTest(title, rightRpm, leftRpm) {
+      clearAdapterTimer("drive");
+      await sendDriveRpm(rightRpm, leftRpm, title);
+
+      if ($("driveAutoRead").checked) {
+        setTimeout(() => {
+          readDriveFeedback().catch((error) => log(`读取驱动反馈失败: ${error.message}`, "error"));
+        }, 160);
+      }
+
+      const durationMs = getDriveDurationMs();
+      log(`${title} 持续 ${durationMs} ms`);
+
+      state.driveTimer = setTimeout(async () => {
+        try {
+          await sendDriveNormalStop();
+          if ($("driveUseEstop").checked) {
+            await sleep(40);
+            await sendDriveEmergencyStop();
+          }
+
+          if ($("driveAutoRead").checked) {
+            setTimeout(() => {
+              readDriveFeedback().catch((error) => log(`停止后读取驱动反馈失败: ${error.message}`, "error"));
+            }, 180);
+          }
+        } catch (error) {
+          log(`驱动定时停止失败: ${error.message}`, "error");
+        }
+      }, durationMs);
+    }
+
+    async function prepareSteerCanControl() {
+      const canId = getSteerNodeId();
+      await sendCanFrame("steer", canId, buildWrite16Data(0x006B, 0), "切换到速度闭环");
+      await sleep(15);
+      await sendCanFrame("steer", canId, buildWrite16Data(0x006C, getSteerControlMode()), `设置控制模式 ${getSteerControlMode()}`);
+    }
+
+    async function stopSteering() {
+      clearAdapterTimer("steer");
+      const canId = getSteerNodeId();
+      await sendCanFrame("steer", canId, buildWrite16Data(0x0031, 0), "转向 0 RPM");
+      await sleep(12);
+      await sendCanFrame("steer", canId, buildWrite16Data(0x0030, getSteerStopMode()), `转向停止模式 ${getSteerStopMode()}`);
+    }
+
+    async function readSteeringPosition() {
+      state.steerWords = {};
+      state.steerFeedbackCount = 0;
+      updateSteerFeedbackUi();
+
+      const canId = getSteerNodeId();
+      await sendCanFrame("steer", canId, buildRead16Data(0x13), "读取转向位置高字");
+      await sleep(18);
+      await sendCanFrame("steer", canId, buildRead16Data(0x14), "读取转向位置低字");
+    }
+
+    async function runSteeringTimedTest(speedRpm, title) {
+      clearAdapterTimer("steer");
+      await prepareSteerCanControl();
+
+      const canId = getSteerNodeId();
+      await sendCanFrame("steer", canId, buildWrite16Data(0x0030, 0), "清除转向停止状态");
+      await sleep(12);
+      await sendCanFrame("steer", canId, buildWrite16Data(0x0031, speedRpm), `${title} / ${speedRpm} RPM`);
+
+      const durationMs = getSteerDurationMs();
+      log(`${title} 持续 ${durationMs} ms`);
+
+      state.steerTimer = setTimeout(async () => {
+        try {
+          await stopSteering();
+          if ($("steerAutoRead").checked) {
+            setTimeout(() => {
+              readSteeringPosition().catch((error) => log(`读取转向位置失败: ${error.message}`, "error"));
+            }, 180);
+          }
+        } catch (error) {
+          log(`转向定时停止失败: ${error.message}`, "error");
+        }
+      }, durationMs);
+    }
+
+    async function guarded(action) {
+      try {
+        await action();
+      } catch (error) {
+        log(error.message, "error");
+        alert(error.message);
+      }
+    }
+
+    $("driveConnectBtn").addEventListener("click", () => guarded(() => connectSerial("drive")));
+    $("driveDisconnectBtn").addEventListener("click", () => guarded(() => disconnectSerial("drive")));
+    $("driveReopenBtn").addEventListener("click", () => guarded(() => openCanBus("drive")));
+    $("driveVersionBtn").addEventListener("click", () => guarded(() => queryAdapterVersion("drive")));
+
+    $("steerConnectBtn").addEventListener("click", () => guarded(() => connectSerial("steer")));
+    $("steerDisconnectBtn").addEventListener("click", () => guarded(() => disconnectSerial("steer")));
+    $("steerReopenBtn").addEventListener("click", () => guarded(() => openCanBus("steer")));
+    $("steerVersionBtn").addEventListener("click", () => guarded(() => queryAdapterVersion("steer")));
+
+    $("clearLogBtn").addEventListener("click", () => {
+      $("log").textContent = "";
+    });
+
+    $("bothForwardBtn").addEventListener("click", () => guarded(() => {
+      const rpm = getDriveMagnitude();
+      return runDriveTimedTest("双轮正转测试", rpm, rpm);
+    }));
+
+    $("bothReverseBtn").addEventListener("click", () => guarded(() => {
+      const rpm = getDriveMagnitude();
+      return runDriveTimedTest("双轮反转测试", -rpm, -rpm);
+    }));
+
+    $("rightForwardBtn").addEventListener("click", () => guarded(() => {
+      const rpm = getDriveMagnitude();
+      return runDriveTimedTest("右轮正转测试", rpm, 0);
+    }));
+
+    $("rightReverseBtn").addEventListener("click", () => guarded(() => {
+      const rpm = getDriveMagnitude();
+      return runDriveTimedTest("右轮反转测试", -rpm, 0);
+    }));
+
+    $("leftForwardBtn").addEventListener("click", () => guarded(() => {
+      const rpm = getDriveMagnitude();
+      return runDriveTimedTest("左轮正转测试", 0, rpm);
+    }));
+
+    $("leftReverseBtn").addEventListener("click", () => guarded(() => {
+      const rpm = getDriveMagnitude();
+      return runDriveTimedTest("左轮反转测试", 0, -rpm);
+    }));
+
+    $("customDriveTestBtn").addEventListener("click", () => guarded(() => {
+      const rightRpm = clamp(parseInt($("rightCustomRpm").value || "0", 10) || 0, -5000, 5000);
+      const leftRpm = clamp(parseInt($("leftCustomRpm").value || "0", 10) || 0, -5000, 5000);
+      return runDriveTimedTest("自定义双轮测试", rightRpm, leftRpm);
+    }));
+
+    $("readDriveFeedbackBtn").addEventListener("click", () => guarded(readDriveFeedback));
+    $("normalStopDriveBtn").addEventListener("click", () => guarded(sendDriveNormalStop));
+    $("emergencyStopDriveBtn").addEventListener("click", () => guarded(sendDriveEmergencyStop));
+
+    $("prepareSteerBtn").addEventListener("click", () => guarded(prepareSteerCanControl));
+    $("steerLeftBtn").addEventListener("click", () => guarded(() => runSteeringTimedTest(-getSteerMagnitude(), "左转测试")));
+    $("steerRightBtn").addEventListener("click", () => guarded(() => runSteeringTimedTest(getSteerMagnitude(), "右转测试")));
+    $("customSteerBtn").addEventListener("click", () => guarded(() => {
+      const signedRpm = clamp(parseInt($("steerSignedRpm").value || "0", 10) || 0, -5000, 5000);
+      return runSteeringTimedTest(signedRpm, "自定义转向测试");
+    }));
+    $("stopSteerBtn").addEventListener("click", () => guarded(stopSteering));
+    $("readSteerPosBtn").addEventListener("click", () => guarded(readSteeringPosition));
+
+    window.addEventListener("beforeunload", () => {
+      ["drive", "steer"].forEach((kind) => {
+        const adapter = getAdapter(kind);
+        if (adapter.writer) {
+          adapter.writer.write(textEncoder.encode("C\r")).catch(() => {});
+        }
+      });
+    });
+
+    updateDriveFeedbackUi();
+    updateSteerFeedbackUi();
+    setConnectState("drive", "未连接", false);
+    setSerialState("drive", "未选择");
+    setVersionState("drive", "--");
+    setConnectState("steer", "未连接", false);
+    setSerialState("steer", "未选择");
+    setVersionState("steer", "--");
+    log("页面已加载。请先分别连接驱动 USB-CAN 和转向 USB-CAN，再单独测试后驱轮或前转向。");
+  </script>
+</body>
+</html>

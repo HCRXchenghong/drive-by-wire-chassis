@@ -71,6 +71,7 @@ typedef struct
   int16_t handwheel_right_10;
   int16_t handwheel_left_limit;
   int16_t handwheel_right_limit;
+  uint16_t drive_max_rpm;
   uint32_t version;
 } vehicle_config_t;
 

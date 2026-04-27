@@ -28,6 +28,8 @@
   - 第一版完整可用基线。
 - `v1.0.1`
   - 加入 `MSSD` 速度回读状态链路、“命令运动状态 / 实际运动状态”双状态、App 侧驱动轮方向即时校正，以及双驱动轮离线反馈联调脚本。
+- `v1.0.2`
+  - 加入 `drive_max_rpm` 全链路配置、状态回传与 Flash 兼容迁移，并新增基于浏览器 `Web Serial` 的 USB-CAN 离线调试页面。
 
 在 `Gitee` 上可以直接按标签下载对应版本源码包，每个标签都可以单独归档和回滚。
 
@@ -48,11 +50,11 @@
 - `项目资料`
   - 旧版 IOC、设计说明等仍可参考的资料。
 - `调试脚本`
-  - 保留驱动轮控制器、转向控制器的离线联调脚本；其中 `mssd_dual_wheel_can.ps1` 已补齐“目标转速下发 + 实际速度回读 + 单轮/双轮顺序测试”能力。
+  - 保留驱动轮控制器、转向控制器的离线联调脚本；其中 `mssd_dual_wheel_can.ps1` 已补齐“目标转速下发 + 实际速度回读 + 单轮/双轮顺序测试”能力，`usb_can_rear_drive_steering_test.html` 可通过浏览器直接做双 USB-CAN 联调。
 
 当前已经明确不再依赖的内容，应当视为历史残留，不作为主链路的一部分：
 
-- 临时浏览器调试脚本。
+- 与当前主链路无关的临时浏览器白屏排障脚本。
 - 白屏排障时生成的 `_tmp_*` 截图和日志。
 - 纯 UI 预览专用的假状态注入逻辑。
 
@@ -184,6 +186,40 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 
 powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 -Port COM9 -NodeId 1 -StopOnly -EmergencyStopOnStop -Run
 ```
 
+#### 4.1.2 浏览器 USB-CAN 联调页
+
+从 `v1.0.2` 开始，仓库里另外保留一个浏览器调试页：
+
+- `调试脚本/usb_can_rear_drive_steering_test.html`
+
+它的定位不是替代正式 App，而是做“离线直连控制器”的现场联调工具。
+
+当前支持：
+
+- 一个 USB-CAN 口接后驱双轮控制器
+- 另一个 USB-CAN 口接前转向控制器
+- 浏览器内分别选择两个串口
+- 直接点按钮做：
+  - 双轮正反转
+  - 左轮单转 / 右轮单转
+  - 自定义左右轮 RPM
+  - 机械转向左打 / 右打
+  - 实际轮速读取
+  - 转向位置读取
+
+使用前提：
+
+1. 使用支持 `Web Serial` 的浏览器
+   - 推荐 `Edge` 或 `Chrome`
+2. 两个控制器各占一个 USB-CAN 串口
+3. 页面内分别连接驱动口和转向口
+
+这个页面当前适合做：
+
+- 现场确认哪一路串口对应哪一个控制器
+- 快速验证后驱双轮和前转向是否通电、是否能响应
+- 在不经过 BLE / EWM22 / App 主链路时，单独验证控制器行为
+
 ### 4.2 机械转向控制器
 
 - 型号：`MSSC`
@@ -246,6 +282,7 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 
 - `pedal_config`
   - `BRAKE_THROTTLE`
   - `ESTOP_THROTTLE`
+- `drive_max_rpm`
 - `steer_can_node_id`
 - `handwheel_can_node_id`
 
@@ -272,8 +309,13 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 
 
 当前存储版本：
 
-- `VEHICLE_CONFIG_VERSION = 0x00030000`
-- `VEHICLE_CONFIG_STORAGE_VERSION = 0x00030000`
+- `VEHICLE_CONFIG_VERSION = 0x00040000`
+- `VEHICLE_CONFIG_STORAGE_VERSION = 0x00040000`
+
+并且当前已经兼容：
+
+- 自动识别并导入 `v1.0.1` 使用的 `0x00030000` 版本配置结构
+- 在旧配置里没有 `drive_max_rpm` 字段时，为其补上默认值 `500 RPM`
 
 ### 5.3 节点号可配置化
 
@@ -295,6 +337,35 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 
 - 当前驱动轮控制器绑定用的 `DRIVE_CAN_NODE_ID` 仍是固件内固定值 `1`。
 - 用户这次明确要求的是把 `STEER_CAN_NODE_ID` 和 `HANDWHEEL_CAN_NODE_ID` 做成可配置参数，这一项已经完成。
 - 如果后续你也希望驱动轮控制器节点号可配置，可以再按同样模式把 `drive_can_node_id` 也加进 `vehicle_config_t`。
+
+### 5.4 最大驱动输出配置
+
+从 `v1.0.2` 开始，最大驱动输出不再是固件内部写死常量，而是正式配置项：
+
+- 字段名：
+  - `drive_max_rpm`
+- 默认值：
+  - `500`
+- 当前约束范围：
+  - `50 ~ 5000 RPM`
+
+这条链路当前已经全部接通：
+
+1. App 配置页可输入 `driveMaxRpm`
+2. `set_app_config` 会把它编码成 `drive_max_rpm`
+3. STM32 保存到 `vehicle_config_t`
+4. Flash 保存结构写入该字段
+5. `config_ack`
+6. `status_ack`
+7. `chassis_status`
+
+都会真实回传当前值。
+
+这意味着：
+
+- 你在 App 里改的最大驱动输出，不是前端假显示
+- 它会真实影响本地 / 远程驱动目标转速换算上限
+- 下次上电后仍然保持
 
 ---
 
@@ -962,10 +1033,11 @@ STM32 回：
 {"cmd":"set_remote_stop_state","soft_stop":false,"estop":false}
 ```
 
-### 10.5 配置命令中的节点号字段
+### 10.5 配置命令中的节点号与最大驱动字段
 
 现在配置命令里可以直接带：
 
+- `drive_max_rpm`
 - `steer_can_node_id`
 - `handwheel_can_node_id`
 
@@ -979,6 +1051,7 @@ STM32 回：
   "front_track_mm": 1280,
   "wheelbase_mm": 1720,
   "rear_track_mm": 1260,
+  "drive_max_rpm": 500,
   "steer_can_node_id": 1,
   "handwheel_can_node_id": 2,
   "linear_steering_enabled": true,
