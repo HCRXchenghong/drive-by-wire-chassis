@@ -1,4 +1,4 @@
-Src/usbd_conf.o: ../Src/usbd_conf.c \
+Src\usbd_conf.o: ..\Src\usbd_conf.c \
  ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h \
  ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h \
  ../Drivers/CMSIS/Include/core_cm4.h \

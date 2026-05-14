@@ -8,45 +8,48 @@ import {
 
 export function syncSessionFromBridgeState(bridgeState) {
   const state = bridgeState || {};
+  const setKnownLinearState = (source) => {
+    const patch = {};
+    [
+      ['enabled', source && source.linearSteeringEnabled],
+      ['detected', source && source.linearSteeringDetected],
+      ['steerCanReady', source && source.steerCanReady]
+    ].forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        patch[key] = !!value;
+      }
+    });
+
+    if (Object.keys(patch).length > 0) {
+      setLinearSteeringState(patch);
+    }
+  };
 
   if (state.configData) {
     updateAppConfig(state.configData);
   }
 
   if (state.chassisStatus) {
-    updateAppConfig({
-      chassisType: state.chassisStatus.chassisType,
-      driveAxle: state.chassisStatus.driveAxle,
-      driveMaxRpm: state.chassisStatus.driveMaxRpm,
-      steerCanNodeId: state.chassisStatus.steerCanNodeId,
-      handwheelCanNodeId: state.chassisStatus.handwheelCanNodeId,
-      leftDriveInverted: !!state.chassisStatus.leftDriveInverted,
-      rightDriveInverted: !!state.chassisStatus.rightDriveInverted,
-      hasLinearSteering: !!state.chassisStatus.linearSteeringEnabled
-    });
-
-    setLinearSteeringState({
-      enabled: !!state.chassisStatus.linearSteeringEnabled,
-      detected: !!state.chassisStatus.linearSteeringDetected,
-      steerCanReady: !!state.chassisStatus.steerCanReady
-    });
+    setKnownLinearState(state.chassisStatus);
   }
 
   if (state.statusData) {
-    updateAppConfig({
-      driveMaxRpm: state.statusData.driveMaxRpm,
-      steerCanNodeId: state.statusData.steerCanNodeId,
-      handwheelCanNodeId: state.statusData.handwheelCanNodeId,
-      leftDriveInverted: !!state.statusData.leftDriveInverted,
-      rightDriveInverted: !!state.statusData.rightDriveInverted,
-      hasLinearSteering: !!state.statusData.linearSteeringEnabled
+    const statusConfigPatch = {};
+    [
+      ['driveMaxRpm', state.statusData.driveMaxRpm],
+      ['steerCanNodeId', state.statusData.steerCanNodeId],
+      ['handwheelCanNodeId', state.statusData.handwheelCanNodeId],
+      ['leftDriveInverted', state.statusData.leftDriveInverted],
+      ['rightDriveInverted', state.statusData.rightDriveInverted],
+      ['hasLinearSteering', state.statusData.linearSteeringEnabled]
+    ].forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        statusConfigPatch[key] = value;
+      }
     });
+    updateAppConfig(statusConfigPatch);
 
-    setLinearSteeringState({
-      enabled: !!state.statusData.linearSteeringEnabled,
-      detected: !!state.statusData.linearSteeringDetected,
-      steerCanReady: !!state.statusData.steerCanReady
-    });
+    setKnownLinearState(state.statusData);
   }
 
   if (state.capabilities) {

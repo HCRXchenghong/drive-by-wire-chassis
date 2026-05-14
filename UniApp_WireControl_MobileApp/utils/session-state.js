@@ -1,4 +1,5 @@
 import { DEFAULT_APP_CONFIG, DEFAULT_CALIBRATION } from './chassis-protocol';
+import { bleNameToProfileId } from './device-profiles';
 
 export const LOCAL_PROFILE_STORAGE_KEY = 'wire_control_local_profiles_v2';
 
@@ -48,9 +49,17 @@ export function getConnectedProfile() {
 }
 
 export function updateAppConfig(config) {
+  const cleanConfig = {};
+  Object.keys(config || {}).forEach((key) => {
+    const value = config[key];
+    if (value !== undefined && value !== null) {
+      cleanConfig[key] = value;
+    }
+  });
+
   sessionState.appConfig = {
     ...sessionState.appConfig,
-    ...(config || {})
+    ...cleanConfig
   };
 }
 
@@ -105,17 +114,72 @@ export function resetSessionState() {
   };
 }
 
+/** Collapse the profile list so that each unique BLE name appears only
+ *  once.  Older records whose ids predate deterministic name-based ids
+ *  are migrated in place — we keep the entry with the most recent
+ *  `lastConnectedAt` timestamp and drop the rest.  The canonical id is
+ *  always derived from the BLE name, so future lookups by id will match
+ *  freshly-created profiles too. */
+function dedupeProfilesByBleName(profiles) {
+  const byName = new Map();
+
+  (profiles || []).forEach((profile) => {
+    if (!profile) {
+      return;
+    }
+
+    const bleName = String(profile.bleNameExact || profile.bleNameHint || '').trim();
+    if (!bleName) {
+      // Preserve entries that have no BLE name but still have an id so
+      // users do not lose manually-authored profiles.
+      if (profile.id) {
+        byName.set(profile.id, profile);
+      }
+      return;
+    }
+
+    const key = bleName.toLowerCase();
+    const canonicalId = bleNameToProfileId(bleName);
+    const candidate = {
+      ...profile,
+      id: canonicalId
+    };
+
+    const previous = byName.get(key);
+    if (!previous) {
+      byName.set(key, candidate);
+      return;
+    }
+
+    // Pick the freshest record and merge the other one's metadata.
+    const prevAt = Number(previous.lastConnectedAt || 0);
+    const nextAt = Number(candidate.lastConnectedAt || 0);
+    const winner = nextAt >= prevAt ? candidate : previous;
+    const loser = nextAt >= prevAt ? previous : candidate;
+
+    byName.set(key, {
+      ...loser,
+      ...winner,
+      id: canonicalId
+    });
+  });
+
+  return Array.from(byName.values());
+}
+
 export function loadProfilesFromStorage() {
   try {
     const saved = uni.getStorageSync(LOCAL_PROFILE_STORAGE_KEY);
-    return Array.isArray(saved) ? sortProfiles(saved) : [];
+    const deduped = dedupeProfilesByBleName(Array.isArray(saved) ? saved : []);
+    return sortProfiles(deduped);
   } catch (error) {
     return [];
   }
 }
 
 export function saveProfilesToStorage(profiles) {
-  uni.setStorageSync(LOCAL_PROFILE_STORAGE_KEY, sortProfiles(profiles));
+  const deduped = dedupeProfilesByBleName(profiles || []);
+  uni.setStorageSync(LOCAL_PROFILE_STORAGE_KEY, sortProfiles(deduped));
 }
 
 export function persistConnectedProfile(bridgeState) {
@@ -128,8 +192,11 @@ export function persistConnectedProfile(bridgeState) {
     sessionState.connectedProfile.bleNameExact ||
     sessionState.connectedProfile.bleNameHint;
 
+  const canonicalId = bleNameToProfileId(deviceName);
   const nextProfile = {
     ...sessionState.connectedProfile,
+    id: canonicalId,
+    name: deviceName || sessionState.connectedProfile.name,
     bleNameExact: deviceName,
     bleNameHint: deviceName,
     frontTrackMm: sessionState.appConfig.frontTrackMm,
@@ -148,7 +215,19 @@ export function persistConnectedProfile(bridgeState) {
   };
 
   const profiles = loadProfilesFromStorage();
-  const existedIndex = profiles.findIndex((item) => item.id === nextProfile.id);
+  const existedIndex = profiles.findIndex((item) => {
+    if (!item) {
+      return false;
+    }
+
+    if (item.id === nextProfile.id) {
+      return true;
+    }
+
+    const savedName = String(item.bleNameExact || item.bleNameHint || '').toLowerCase();
+    const incomingName = String(deviceName || '').toLowerCase();
+    return !!savedName && savedName === incomingName;
+  });
 
   if (existedIndex >= 0) {
     profiles.splice(existedIndex, 1, nextProfile);

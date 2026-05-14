@@ -41,6 +41,7 @@ bool mssc_steering_controller_stop(const mssc_steering_controller_t *controller)
 bool mssc_steering_controller_stop_priority(const mssc_steering_controller_t *controller,
                                             can_transport_priority_t priority);
 void mssc_steering_controller_feedback_process(mssc_steering_controller_t *controller);
+void mssc_steering_controller_service(mssc_steering_controller_t *controller, bool enable_feedback_query);
 bool mssc_steering_controller_get_position_raw(const mssc_steering_controller_t *controller,
                                                int32_t *position_raw,
                                                uint32_t *age_ms);

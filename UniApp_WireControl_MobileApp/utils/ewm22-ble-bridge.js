@@ -1,6 +1,4 @@
 import {
-  DEFAULT_APP_CONFIG,
-  DEFAULT_CALIBRATION,
   normalizeCalibrationPayload,
   normalizeCapabilitiesPayload,
   normalizeConfigPayload,
@@ -9,6 +7,14 @@ import {
   serializeCommand,
   serializeControlFrame
 } from './chassis-protocol';
+
+const BLE_DISCOVERY_INITIAL_DELAY_MS = 350;
+const BLE_DISCOVERY_RETRY_DELAY_MS = 450;
+const BLE_DISCOVERY_MAX_ATTEMPTS = 3;
+const BLE_NOTIFY_RETRY_DELAY_MS = 300;
+const BLE_NOTIFY_MAX_ATTEMPTS = 3;
+const BLE_WRITE_RETRY_DELAY_MS = 40;
+const BLE_WRITE_MAX_RETRIES = 2;
 
 const runtimeState = {
   supported: false,
@@ -27,6 +33,7 @@ const runtimeState = {
   txCharacteristicId: '',
   configCharacteristicId: '',
   notifyReady: false,
+  notifyReadyAt: 0,
   mtu: 20,
   lastError: '',
   lastRxLine: '',
@@ -38,13 +45,15 @@ const runtimeState = {
   chassisStatus: null,
   chassisStatusAt: 0,
   chassisStatusSeq: 0,
-  configData: { ...DEFAULT_APP_CONFIG },
+  configData: null,
   configAt: 0,
+  configResult: null,
+  configResultAt: 0,
   statusData: null,
   statusAt: 0,
   capabilities: null,
   capabilitiesAt: 0,
-  calibrationData: { ...DEFAULT_CALIBRATION },
+  calibrationData: null,
   calibrationAt: 0,
   linearSteering: null,
   linearSteeringAt: 0,
@@ -61,6 +70,15 @@ let incomingTextBuffer = '';
 let writeQueue = [];
 let writeBusy = false;
 let sessionAutoConnect = true;
+let discoveryRetryTimer = null;
+let discoveryRequestToken = 0;
+let notifyRetryTimer = null;
+
+function scheduleFlushWriteQueue(delayMs) {
+  setTimeout(() => {
+    flushWriteQueue();
+  }, Math.max(0, Number(delayMs) || 0));
+}
 
 function updateState(patch) {
   Object.keys(patch).forEach((key) => {
@@ -90,6 +108,7 @@ function resetState() {
     txCharacteristicId: '',
     configCharacteristicId: '',
     notifyReady: false,
+    notifyReadyAt: 0,
     mtu: 20,
     lastError: '',
     lastRxLine: '',
@@ -101,13 +120,15 @@ function resetState() {
     chassisStatus: null,
     chassisStatusAt: 0,
     chassisStatusSeq: 0,
-    configData: { ...DEFAULT_APP_CONFIG },
+    configData: null,
     configAt: 0,
+    configResult: null,
+    configResultAt: 0,
     statusData: null,
     statusAt: 0,
     capabilities: null,
     capabilitiesAt: 0,
-    calibrationData: { ...DEFAULT_CALIBRATION },
+    calibrationData: null,
     calibrationAt: 0,
     linearSteering: null,
     linearSteeringAt: 0,
@@ -192,6 +213,128 @@ function makeError(prefix, error) {
   return detail ? `${prefix}: ${detail}` : prefix;
 }
 
+function clearDiscoveryRetryTimer() {
+  if (!discoveryRetryTimer) {
+    return;
+  }
+
+  clearTimeout(discoveryRetryTimer);
+  discoveryRetryTimer = null;
+}
+
+function clearNotifyRetryTimer() {
+  if (!notifyRetryTimer) {
+    return;
+  }
+
+  clearTimeout(notifyRetryTimer);
+  notifyRetryTimer = null;
+}
+
+function invalidateDiscoveryRequests() {
+  discoveryRequestToken += 1;
+  clearDiscoveryRetryTimer();
+  clearNotifyRetryTimer();
+}
+
+function isDiscoveryRequestActive(deviceId, token) {
+  return !!deviceId &&
+         !!runtimeState.clientConnected &&
+         runtimeState.deviceId === deviceId &&
+         token === discoveryRequestToken;
+}
+
+function describeCharacteristicProperties(properties) {
+  const flags = [];
+  const safeProperties = properties || {};
+
+  if (safeProperties.notify) {
+    flags.push('notify');
+  }
+
+  if (safeProperties.indicate) {
+    flags.push('indicate');
+  }
+
+  if (safeProperties.read) {
+    flags.push('read');
+  }
+
+  if (safeProperties.write) {
+    flags.push('write');
+  }
+
+  if (safeProperties.writeNoResponse) {
+    flags.push('writeNoRsp');
+  }
+
+  return flags.length > 0 ? flags.join('/') : 'none';
+}
+
+function getUuidShortCode(uuid) {
+  const normalized = normalizeUuid(uuid);
+
+  if (!normalized) {
+    return '';
+  }
+
+  if (normalized.length === 4) {
+    return normalized;
+  }
+
+  if (normalized.length >= 8 && normalized.indexOf('0000') === 0) {
+    return normalized.slice(4, 8);
+  }
+
+  return normalized.length >= 4 ? normalized.slice(-4) : normalized;
+}
+
+function uuidMatchesShortCode(uuid, shortCode) {
+  return getUuidShortCode(uuid) === String(shortCode || '').toUpperCase();
+}
+
+function summarizeCharacteristics(characteristics) {
+  const list = Array.isArray(characteristics) ? characteristics : [];
+
+  if (list.length === 0) {
+    return '无特征';
+  }
+
+  return list.map((item) => {
+    const label = getUuidShortCode(item.uuid);
+    return `${label}[${describeCharacteristicProperties(item.properties)}]`;
+  }).join(', ');
+}
+
+function makeDiscoveryErrorMessage(attempt, diagnostics) {
+  const safeDiagnostics = diagnostics || {};
+  const parts = [];
+
+  parts.push(`BLE 特征发现第 ${attempt}/${BLE_DISCOVERY_MAX_ATTEMPTS} 次失败`);
+
+  if (safeDiagnostics.stage === 'services') {
+    parts.push(`读取服务失败：${safeDiagnostics.detail || '未知错误'}`);
+  } else if (safeDiagnostics.stage === 'characteristics') {
+    parts.push(`未找到完整透传特征`);
+
+    if (safeDiagnostics.serviceSummaries && safeDiagnostics.serviceSummaries.length > 0) {
+      parts.push(`已检查服务：${safeDiagnostics.serviceSummaries.join(' ; ')}`);
+    }
+
+    if (safeDiagnostics.characteristicErrors && safeDiagnostics.characteristicErrors.length > 0) {
+      parts.push(`特征读取错误：${safeDiagnostics.characteristicErrors.join(' ; ')}`);
+    }
+
+    if (safeDiagnostics.missing) {
+      parts.push(`缺失项：${safeDiagnostics.missing}`);
+    }
+  } else {
+    parts.push(safeDiagnostics.detail || '未知错误');
+  }
+
+  return parts.join('，');
+}
+
 function tryParseJsonLine(line) {
   if (!line || line.charAt(0) !== '{') {
     return null;
@@ -254,15 +397,79 @@ function asciiTextToArrayBuffer(text) {
   return bytes.buffer;
 }
 
-function arrayBufferToAsciiText(buffer) {
-  const bytes = new Uint8Array(buffer);
+function utf8BytesToText(bytes) {
+  const source = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || 0);
   let text = '';
+  let index = 0;
 
-  for (let index = 0; index < bytes.length; index += 1) {
-    text += String.fromCharCode(bytes[index]);
+  while (index < source.length) {
+    const first = source[index];
+
+    if (first < 0x80) {
+      text += String.fromCharCode(first);
+      index += 1;
+      continue;
+    }
+
+    if ((first & 0xE0) === 0xC0 && (index + 1) < source.length) {
+      const second = source[index + 1];
+      if ((second & 0xC0) === 0x80) {
+        const codePoint = ((first & 0x1F) << 6) | (second & 0x3F);
+        text += String.fromCharCode(codePoint);
+        index += 2;
+        continue;
+      }
+    }
+
+    if ((first & 0xF0) === 0xE0 && (index + 2) < source.length) {
+      const second = source[index + 1];
+      const third = source[index + 2];
+      if (((second & 0xC0) === 0x80) && ((third & 0xC0) === 0x80)) {
+        const codePoint = ((first & 0x0F) << 12) |
+                          ((second & 0x3F) << 6) |
+                          (third & 0x3F);
+        text += String.fromCharCode(codePoint);
+        index += 3;
+        continue;
+      }
+    }
+
+    if ((first & 0xF8) === 0xF0 && (index + 3) < source.length) {
+      const second = source[index + 1];
+      const third = source[index + 2];
+      const fourth = source[index + 3];
+      if (((second & 0xC0) === 0x80) &&
+          ((third & 0xC0) === 0x80) &&
+          ((fourth & 0xC0) === 0x80)) {
+        const codePoint = ((first & 0x07) << 18) |
+                          ((second & 0x3F) << 12) |
+                          ((third & 0x3F) << 6) |
+                          (fourth & 0x3F);
+        const safeCodePoint = codePoint - 0x10000;
+        text += String.fromCharCode(
+          0xD800 + ((safeCodePoint >> 10) & 0x3FF),
+          0xDC00 + (safeCodePoint & 0x3FF)
+        );
+        index += 4;
+        continue;
+      }
+    }
+
+    text += '\uFFFD';
+    index += 1;
   }
 
   return text;
+}
+
+function arrayBufferToAsciiText(buffer) {
+  if (typeof TextDecoder !== 'undefined') {
+    try {
+      return new TextDecoder('utf-8').decode(buffer);
+    } catch (error) {}
+  }
+
+  return utf8BytesToText(new Uint8Array(buffer));
 }
 
 function splitTextToBuffers(text) {
@@ -297,14 +504,14 @@ function applyParsedMessage(parsed, textLine) {
       patch.chassisStatus = normalizeStatusPayload(parsed);
       patch.chassisStatusAt = now;
       patch.chassisStatusSeq = Number(parsed.seq || runtimeState.chassisStatusSeq + 1);
-      patch.configData = {
-        ...runtimeState.configData,
-        ...normalizeConfigPayload(parsed)
-      };
       break;
     case 'config_ack':
-      patch.configData = normalizeConfigPayload(parsed);
-      patch.configAt = now;
+      patch.configResult = parsed;
+      patch.configResultAt = now;
+      if (parsed.ok !== false) {
+        patch.configData = normalizeConfigPayload(parsed);
+        patch.configAt = now;
+      }
       break;
     case 'status_ack':
       patch.statusData = normalizeStatusPayload(parsed);
@@ -367,17 +574,19 @@ function consumeIncomingChunk(text) {
     processIncomingLine(line);
   }
 
-  if (incomingTextBuffer.length > 1024) {
-    incomingTextBuffer = incomingTextBuffer.slice(-512);
+  // The STM32 status / chassis_status payloads can be several hundred bytes
+  // each, and BLE MTU=20 splits them into many notifications.  We must keep
+  // a large enough window so a fragmented line is never chopped in half
+  // before its terminating \n arrives, otherwise JSON.parse fails and the
+  // handshake page stalls waiting for a reply.
+  if (incomingTextBuffer.length > 8192) {
+    incomingTextBuffer = incomingTextBuffer.slice(-4096);
   }
 }
 
 function handleWriteFailure(error) {
-  clearWriteQueue();
   updateState({
-    lastError: makeError('BLE 发送失败', error),
-    clientConnected: false,
-    notifyReady: false
+    lastError: makeError('BLE 发送失败', error)
   });
 }
 
@@ -397,20 +606,31 @@ function flushWriteQueue() {
     deviceId: runtimeState.deviceId,
     serviceId: runtimeState.serviceId,
     characteristicId: runtimeState.txCharacteristicId,
-    value: nextChunk,
+    value: nextChunk.buffer,
     success() {
       updateState({
         txCount: runtimeState.txCount + 1
       });
 
       writeBusy = false;
-      setTimeout(() => {
-        flushWriteQueue();
-      }, 8);
+      scheduleFlushWriteQueue(8);
     },
     fail(error) {
       writeBusy = false;
+      if ((nextChunk.retryCount || 0) < BLE_WRITE_MAX_RETRIES &&
+          runtimeState.clientConnected &&
+          runtimeState.notifyReady) {
+        nextChunk.retryCount = (nextChunk.retryCount || 0) + 1;
+        writeQueue.unshift(nextChunk);
+        updateState({
+          lastError: `${makeError('BLE 发送失败', error)}，正在重试 ${nextChunk.retryCount}/${BLE_WRITE_MAX_RETRIES}`
+        });
+        scheduleFlushWriteQueue(BLE_WRITE_RETRY_DELAY_MS);
+        return;
+      }
+
       handleWriteFailure(error);
+      scheduleFlushWriteQueue(BLE_WRITE_RETRY_DELAY_MS);
     }
   });
 }
@@ -421,7 +641,10 @@ function enqueueTextLine(text, replacePendingQueue) {
   }
 
   splitTextToBuffers(text).forEach((buffer) => {
-    writeQueue.push(buffer);
+    writeQueue.push({
+      buffer,
+      retryCount: 0
+    });
   });
 
   flushWriteQueue();
@@ -448,93 +671,342 @@ function requestPreferredMtu() {
   });
 }
 
+function isBridgeNotifyCharacteristic(characteristicId) {
+  const normalized = normalizeUuid(characteristicId);
+
+  return normalized &&
+         (normalized === normalizeUuid(runtimeState.rxCharacteristicId) ||
+          normalized === normalizeUuid(runtimeState.configCharacteristicId));
+}
+
 function enableNotifyForBridge() {
-  uni.notifyBLECharacteristicValueChange({
-    deviceId: runtimeState.deviceId,
-    serviceId: runtimeState.serviceId,
-    characteristicId: runtimeState.rxCharacteristicId,
-    state: true,
-    success() {
+  const notifyTargets = [];
+  let completed = 0;
+  let successCount = 0;
+  const errors = [];
+
+  function finishNotifyAttempt() {
+    completed += 1;
+
+    if (completed < notifyTargets.length) {
+      return;
+    }
+
+    if (successCount > 0) {
       updateState({
         notifyReady: true,
         lastError: ''
       });
       requestPreferredMtu();
-    },
-    fail(error) {
-      updateState({
-        lastError: makeError('打开 BLE 透传通知失败', error)
-      });
+      return;
     }
-  });
-}
 
-function inspectServiceCharacteristics(services, index) {
-  if (index >= services.length) {
     updateState({
-      lastError: '未找到 EWM22 透传特征，请确认模块工作在 BLE 透传模式。'
+      lastError: errors.join('；') || '打开 BLE 透传通知失败'
+    });
+  }
+
+  if (runtimeState.rxCharacteristicId) {
+    notifyTargets.push({
+      characteristicId: runtimeState.rxCharacteristicId,
+      label: '透传'
+    });
+  }
+
+  if (runtimeState.configCharacteristicId &&
+      normalizeUuid(runtimeState.configCharacteristicId) !== normalizeUuid(runtimeState.rxCharacteristicId)) {
+    notifyTargets.push({
+      characteristicId: runtimeState.configCharacteristicId,
+      label: '配置'
+    });
+  }
+
+  if (notifyTargets.length === 0) {
+    updateState({
+      lastError: '未找到可用的 BLE 通知特征'
     });
     return;
   }
 
-  const serviceId = services[index].uuid;
+  notifyTargets.forEach((target) => {
+    uni.notifyBLECharacteristicValueChange({
+      deviceId: runtimeState.deviceId,
+      serviceId: runtimeState.serviceId,
+      characteristicId: target.characteristicId,
+      state: true,
+      success() {
+        successCount += 1;
+        finishNotifyAttempt();
+      },
+      fail(error) {
+        errors.push(makeError(`打开 BLE ${target.label}通知失败`, error));
+        finishNotifyAttempt();
+      }
+    });
+  });
+}
+
+function enableNotifyForBridgeStrictAttempt(notifyTargets, attempt) {
+  let completed = 0;
+  let primaryReady = false;
+  const errors = [];
+
+  function finishNotifyAttempt() {
+    completed += 1;
+
+    if (completed < notifyTargets.length) {
+      return;
+    }
+
+    if (primaryReady) {
+      clearNotifyRetryTimer();
+      updateState({
+        notifyReady: true,
+        notifyReadyAt: Date.now(),
+        lastError: ''
+      });
+      requestPreferredMtu();
+      return;
+    }
+
+    const message = errors.join('; ') || 'BLE transparent notify is unavailable';
+    if (attempt < BLE_NOTIFY_MAX_ATTEMPTS) {
+      updateState({
+        notifyReady: false,
+        notifyReadyAt: 0,
+        lastError: `${message}; retry in ${BLE_NOTIFY_RETRY_DELAY_MS} ms.`
+      });
+      clearNotifyRetryTimer();
+      notifyRetryTimer = setTimeout(() => {
+        notifyRetryTimer = null;
+        if (!runtimeState.clientConnected || !runtimeState.deviceId || !runtimeState.serviceId) {
+          return;
+        }
+        enableNotifyForBridgeStrictAttempt(notifyTargets, attempt + 1);
+      }, BLE_NOTIFY_RETRY_DELAY_MS);
+      return;
+    }
+
+    updateState({
+      notifyReady: false,
+      notifyReadyAt: 0,
+      lastError: message
+    });
+  }
+
+  notifyTargets.forEach((target) => {
+    uni.notifyBLECharacteristicValueChange({
+      deviceId: runtimeState.deviceId,
+      serviceId: runtimeState.serviceId,
+      characteristicId: target.characteristicId,
+      state: true,
+      success() {
+        if (target.required) {
+          primaryReady = true;
+        }
+        finishNotifyAttempt();
+      },
+      fail(error) {
+        errors.push(makeError(`打开 BLE ${target.label}通知失败`, error));
+        finishNotifyAttempt();
+      }
+    });
+  });
+}
+
+function enableNotifyForBridgeStrict() {
+  const notifyTargets = [];
+
+  clearNotifyRetryTimer();
+
+  if (runtimeState.rxCharacteristicId) {
+    notifyTargets.push({
+      characteristicId: runtimeState.rxCharacteristicId,
+      label: '透传',
+      required: true
+    });
+  }
+
+  if (runtimeState.configCharacteristicId &&
+      normalizeUuid(runtimeState.configCharacteristicId) !== normalizeUuid(runtimeState.rxCharacteristicId)) {
+    notifyTargets.push({
+      characteristicId: runtimeState.configCharacteristicId,
+      label: '配置',
+      required: false
+    });
+  }
+
+  if (notifyTargets.length === 0) {
+    updateState({
+      notifyReady: false,
+      notifyReadyAt: 0,
+      lastError: 'No usable BLE notify characteristic was found'
+    });
+    return;
+  }
+
+  enableNotifyForBridgeStrictAttempt(notifyTargets, 1);
+}
+
+function inspectServiceCharacteristics(services, index, deviceId, token, diagnostics, callback) {
+  if (!isDiscoveryRequestActive(deviceId, token)) {
+    return;
+  }
+
+  if (index >= services.length) {
+    callback(null, diagnostics);
+    return;
+  }
+
+  const service = services[index] || {};
+  const serviceId = service.uuid;
+  const normalizedServiceId = normalizeUuid(serviceId);
 
   uni.getBLEDeviceCharacteristics({
-    deviceId: runtimeState.deviceId,
+    deviceId,
     serviceId,
     success(result) {
+      if (!isDiscoveryRequestActive(deviceId, token)) {
+        return;
+      }
+
       const characteristics = result.characteristics || [];
       let rxCharacteristicId = '';
       let txCharacteristicId = '';
       let configCharacteristicId = '';
 
+      diagnostics.serviceSummaries.push(
+        `${normalizedServiceId || serviceId}: ${summarizeCharacteristics(characteristics)}`
+      );
+
       characteristics.forEach((item) => {
-        const normalized = normalizeUuid(item.uuid);
         const properties = item.properties || {};
 
-        if (!rxCharacteristicId && normalized.endsWith('FFF1') && properties.notify) {
+        if (!rxCharacteristicId && uuidMatchesShortCode(item.uuid, 'FFF1') && properties.notify) {
           rxCharacteristicId = item.uuid;
         }
 
         if (!txCharacteristicId &&
-            normalized.endsWith('FFF2') &&
+            uuidMatchesShortCode(item.uuid, 'FFF2') &&
             (properties.write || properties.writeNoResponse)) {
           txCharacteristicId = item.uuid;
         }
 
-        if (!configCharacteristicId && normalized.endsWith('FFF3')) {
+        if (!configCharacteristicId && uuidMatchesShortCode(item.uuid, 'FFF3')) {
           configCharacteristicId = item.uuid;
         }
       });
 
       if (rxCharacteristicId && txCharacteristicId) {
-        updateState({
+        callback({
           serviceId,
           rxCharacteristicId,
           txCharacteristicId,
           configCharacteristicId
-        });
-        enableNotifyForBridge();
+        }, diagnostics);
         return;
       }
 
-      inspectServiceCharacteristics(services, index + 1);
+      inspectServiceCharacteristics(services, index + 1, deviceId, token, diagnostics, callback);
     },
-    fail() {
-      inspectServiceCharacteristics(services, index + 1);
+    fail(error) {
+      if (!isDiscoveryRequestActive(deviceId, token)) {
+        return;
+      }
+
+      diagnostics.characteristicErrors.push(
+        `${normalizedServiceId || serviceId}: ${stringifyError(error) || '读取特征失败'}`
+      );
+      inspectServiceCharacteristics(services, index + 1, deviceId, token, diagnostics, callback);
     }
   });
 }
 
-function discoverBridgeCharacteristics() {
+function scheduleBridgeCharacteristicDiscovery(deviceId, attempt, delayMs) {
+  const token = discoveryRequestToken;
+
+  clearDiscoveryRetryTimer();
+  discoveryRetryTimer = setTimeout(() => {
+    discoveryRetryTimer = null;
+    discoverBridgeCharacteristics(deviceId, attempt, token);
+  }, Math.max(0, delayMs));
+}
+
+function discoverBridgeCharacteristics(deviceId, attempt, token) {
+  if (!isDiscoveryRequestActive(deviceId, token)) {
+    return;
+  }
+
   uni.getBLEDeviceServices({
-    deviceId: runtimeState.deviceId,
+    deviceId,
     success(result) {
-      inspectServiceCharacteristics(result.services || [], 0);
+      if (!isDiscoveryRequestActive(deviceId, token)) {
+        return;
+      }
+
+      const services = result.services || [];
+      const diagnostics = {
+        stage: 'characteristics',
+        detail: '',
+        serviceSummaries: [],
+        characteristicErrors: [],
+        missing: ''
+      };
+
+      inspectServiceCharacteristics(services, 0, deviceId, token, diagnostics, (matched, finalDiagnostics) => {
+        if (!isDiscoveryRequestActive(deviceId, token)) {
+          return;
+        }
+
+        if (matched) {
+          updateState({
+            serviceId: matched.serviceId,
+            rxCharacteristicId: matched.rxCharacteristicId,
+            txCharacteristicId: matched.txCharacteristicId,
+            configCharacteristicId: matched.configCharacteristicId,
+            lastError: ''
+          });
+          enableNotifyForBridgeStrict();
+          return;
+        }
+
+        finalDiagnostics.missing = 'FFF1(notify) 或 FFF2(write/writeNoRsp)';
+        const message = makeDiscoveryErrorMessage(attempt, finalDiagnostics);
+
+        if (attempt < BLE_DISCOVERY_MAX_ATTEMPTS) {
+          updateState({
+            lastError: `${message}，${BLE_DISCOVERY_RETRY_DELAY_MS} ms 后重试。`
+          });
+          scheduleBridgeCharacteristicDiscovery(deviceId, attempt + 1, BLE_DISCOVERY_RETRY_DELAY_MS);
+          return;
+        }
+
+        updateState({
+          lastError: message
+        });
+      });
     },
     fail(error) {
+      if (!isDiscoveryRequestActive(deviceId, token)) {
+        return;
+      }
+
+      const diagnostics = {
+        stage: 'services',
+        detail: stringifyError(error)
+      };
+      const message = makeDiscoveryErrorMessage(attempt, diagnostics);
+
+      if (attempt < BLE_DISCOVERY_MAX_ATTEMPTS) {
+        updateState({
+          lastError: `${message}，${BLE_DISCOVERY_RETRY_DELAY_MS} ms 后重试。`
+        });
+        scheduleBridgeCharacteristicDiscovery(deviceId, attempt + 1, BLE_DISCOVERY_RETRY_DELAY_MS);
+        return;
+      }
+
       updateState({
-        lastError: makeError('读取 BLE 服务失败', error)
+        lastError: message
       });
     }
   });
@@ -547,22 +1019,31 @@ function connectToMatchedDevice(deviceId, deviceName) {
 
   connectingDeviceId = deviceId;
   stopDiscoveryQuietly();
+  invalidateDiscoveryRequests();
 
   uni.createBLEConnection({
     deviceId,
     timeout: 15000,
     success() {
       connectingDeviceId = '';
+      invalidateDiscoveryRequests();
       updateState({
         clientConnected: true,
         deviceId,
         deviceName,
+        serviceId: '',
+        rxCharacteristicId: '',
+        txCharacteristicId: '',
+        configCharacteristicId: '',
+        notifyReady: false,
+        notifyReadyAt: 0,
         lastError: ''
       });
-      discoverBridgeCharacteristics();
+      scheduleBridgeCharacteristicDiscovery(deviceId, 1, BLE_DISCOVERY_INITIAL_DELAY_MS);
     },
     fail(error) {
       connectingDeviceId = '';
+      invalidateDiscoveryRequests();
       updateState({
         lastError: makeError('连接 BLE 设备失败', error)
       });
@@ -594,6 +1075,14 @@ function matchesProfile(deviceName) {
   const keyword = String(currentProfile.bleNameKeyword || '');
   if (keyword && name.indexOf(keyword) !== -1) {
     return true;
+  }
+
+  // Accept the current ATK-BLE04 naming family plus the configured fleet prefix.
+  const knownFamilies = ['infinite-robot', 'ATK-BLE'];
+  for (let i = 0; i < knownFamilies.length; i += 1) {
+    if (name.indexOf(knownFamilies[i]) !== -1) {
+      return true;
+    }
   }
 
   return false;
@@ -645,10 +1134,12 @@ function registerListenersOnce() {
 
     clearWriteQueue();
     incomingTextBuffer = '';
+    invalidateDiscoveryRequests();
 
     updateState({
       clientConnected: false,
       notifyReady: false,
+      notifyReadyAt: 0,
       serviceId: '',
       rxCharacteristicId: '',
       txCharacteristicId: '',
@@ -662,7 +1153,7 @@ function registerListenersOnce() {
       return;
     }
 
-    if (normalizeUuid(result.characteristicId) !== normalizeUuid(runtimeState.rxCharacteristicId)) {
+    if (!isBridgeNotifyCharacteristic(result.characteristicId)) {
       return;
     }
 
@@ -692,6 +1183,7 @@ export function getBridgeState() {
 }
 
 export function startBleSession(profile, options) {
+  invalidateDiscoveryRequests();
   resetState();
   clearWriteQueue();
   incomingTextBuffer = '';
@@ -739,6 +1231,7 @@ export function startBleSession(profile, options) {
 }
 
 export function stopBleSession() {
+  invalidateDiscoveryRequests();
   clearWriteQueue();
   incomingTextBuffer = '';
   connectingDeviceId = '';

@@ -1,7 +1,8 @@
-../Src/board_io.c:7:13:board_io_update_gear	16	static
-../Src/board_io.c:13:13:board_io_update_hardware_estop	16	static
-../Src/board_io.c:19:13:board_io_update_adc	8	static
-../Src/board_io.c:48:6:board_io_init	16	static
-../Src/board_io.c:59:6:board_io_process	16	static
-../Src/board_io.c:74:25:board_io_get	4	static
-../Src/board_io.c:79:13:board_io_gear_name	16	static
+../Src/board_io.c:7:17:board_io_read_adc_channel	48	static
+../Src/board_io.c:51:13:board_io_update_gear	16	static
+../Src/board_io.c:57:13:board_io_update_hardware_estop	16	static
+../Src/board_io.c:63:13:board_io_update_adc	8	static
+../Src/board_io.c:74:6:board_io_init	16	static
+../Src/board_io.c:85:6:board_io_process	16	static
+../Src/board_io.c:100:25:board_io_get	4	static
+../Src/board_io.c:105:13:board_io_gear_name	16	static

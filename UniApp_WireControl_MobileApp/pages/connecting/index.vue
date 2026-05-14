@@ -77,10 +77,12 @@ export default {
       connectStartedAt: 0,
       connectPhase: 0,
       snapshotRequestSent: false,
+      lastSnapshotRequestAt: 0,
+      snapshotTimerIds: [],
       frameSeq: 1,
       stepsList: [
         { title: '蓝牙准备', desc: '打开手机蓝牙并开始搜索' },
-        { title: '设备发现', desc: '扫描目标 EWM22 BLE 模块' },
+        { title: '设备发现', desc: '扫描目标 infinite-robot-001 广播' },
         { title: '建立链路', desc: '建立 BLE 透传连接' },
         { title: '协议握手', desc: '请求 STM32 配置与状态快照' }
       ]
@@ -120,21 +122,49 @@ export default {
   onUnload() {
     clearInterval(this.connectTicker);
     this.connectTicker = null;
+    this.clearSnapshotTimers();
   },
   methods: {
+    clearSnapshotTimers() {
+      (this.snapshotTimerIds || []).forEach((timerId) => {
+        clearTimeout(timerId);
+      });
+      this.snapshotTimerIds = [];
+    },
+    requestHandshakeStatus() {
+      this.lastSnapshotRequestAt = Date.now();
+      return sendJsonCommand(createGetStatusCommand(), {
+        replacePendingQueue: true
+      });
+    },
     requestInitialSnapshot() {
-      sendJsonCommand(createGetCapabilitiesCommand());
-      sendJsonCommand(createGetConfigCommand());
-      sendJsonCommand(createGetStatusCommand());
-      sendJsonCommand(createGetCalibrationCommand());
-      sendJsonCommand(createQueryLinearSteeringCommand());
+      this.clearSnapshotTimers();
+      this.requestHandshakeStatus();
+
+      const delayedCommands = [
+        createGetCapabilitiesCommand(),
+        createGetConfigCommand(),
+        createGetCalibrationCommand(),
+        createQueryLinearSteeringCommand()
+      ];
+
+      delayedCommands.forEach((command, index) => {
+        const timerId = setTimeout(() => {
+          sendJsonCommand(command);
+        }, 220 + (index * 140));
+
+        this.snapshotTimerIds.push(timerId);
+      });
     },
     hasHandshakeReply() {
       return !!(
         this.bridgeState.lastJsonAt ||
         this.bridgeState.configAt ||
         this.bridgeState.statusAt ||
-        this.bridgeState.chassisStatusAt
+        this.bridgeState.chassisStatusAt ||
+        this.bridgeState.capabilitiesAt ||
+        this.bridgeState.calibrationAt ||
+        this.bridgeState.linearSteeringAt
       );
     },
     sendNeutralFrame() {
@@ -157,8 +187,11 @@ export default {
       this.connectStartedAt = Date.now();
       this.connectPhase = 0;
       this.snapshotRequestSent = false;
+      this.lastSnapshotRequestAt = 0;
+      this.clearSnapshotTimers();
 
       this.connectTicker = setInterval(() => {
+        const now = Date.now();
         this.bridgeState = getBridgeState();
 
         if (this.bridgeState.lastError) {
@@ -187,11 +220,25 @@ export default {
           this.progress = 88;
           this.activeStep = 4;
           this.connectPhase = 4;
+        }
 
-          if (!this.snapshotRequestSent) {
+        if (this.connectPhase >= 4 &&
+            this.bridgeState.notifyReady &&
+            !this.hasHandshakeReply()) {
+          const notifyReadyAt = Number(this.bridgeState.notifyReadyAt || 0);
+          const notifySettled = !notifyReadyAt || (now - notifyReadyAt) >= 180;
+
+          if (!this.snapshotRequestSent && notifySettled) {
             this.sendNeutralFrame();
             this.requestInitialSnapshot();
             this.snapshotRequestSent = true;
+          } else if (this.snapshotRequestSent && (now - this.lastSnapshotRequestAt) >= 1500) {
+            // Re-kick the handshake: a neutral control frame makes the STM32
+            // remote_fresh gate flip to true so the 200 ms chassis_status
+            // broadcast starts immediately, and get_status provides a quick
+            // direct ack in case the broadcast gate is delayed.
+            this.sendNeutralFrame();
+            this.requestHandshakeStatus();
           }
         }
 
@@ -223,22 +270,23 @@ export default {
           }, 320);
         }
 
-        if ((Date.now() - this.connectStartedAt) > 20000 &&
+        if ((now - this.connectStartedAt) > 20000 &&
             !this.bridgeState.candidateFound &&
             !this.connectError) {
-          this.connectError = '20 秒内未扫描到匹配的 EWM22 BLE 广播，请检查模块已上电并开启广播。';
+          this.connectError = '20 秒内未扫描到匹配的 infinite-robot 广播，请检查模块已上电并开启广播。';
         }
 
-        if ((Date.now() - this.connectStartedAt) > 45000 &&
+        if ((now - this.connectStartedAt) > 45000 &&
             !this.hasHandshakeReply() &&
             !this.connectError) {
-          this.connectError = '45 秒内仍未收到 STM32 配置或状态回包，请检查 EWM22、USART1、CAN 与固件。';
+          this.connectError = '45 秒内仍未收到 STM32 配置或状态回包，请检查 BLE 模块、USART1、CAN 与固件。';
         }
       }, 200);
     },
     cancelConnect() {
       clearInterval(this.connectTicker);
       this.connectTicker = null;
+      this.clearSnapshotTimers();
       stopBleSession();
 
       if (this.source === 'pairing') {

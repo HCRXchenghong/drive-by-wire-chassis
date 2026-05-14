@@ -1,5 +1,5 @@
-Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o: \
- ../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c \
+Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_ioreq.o: \
+ ..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_ioreq.c \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h \
  ../Inc/usbd_conf.h ../Inc/main.h \

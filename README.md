@@ -7,7 +7,7 @@
 当前目标是把下面这条链路真正打通：
 
 1. 手机 `uni-app` 蓝牙 App 作为上位机。
-2. `EWM22A-xxxBWL22S` 作为 `BLE <-> UART` 透传桥。
+2. `ATK-BLE04` 作为 `BLE <-> UART` 透传桥，广播名建议统一为 `infinite-robot-001~999`。
 3. `STM32F407` 作为底盘主控。
 4. `MSSD-60EHB_2D` 作为双驱动轮控制器。
 5. `MSSC` 作为机械转向电机控制器。
@@ -68,9 +68,9 @@
 
 当前主控制链路如下：
 
-1. 手机 App 通过 BLE 扫描并连接 `EWM22`。
+1. 手机 App 通过 BLE 扫描并连接 `ATK-BLE04`。
 2. App 通过 BLE 特征值发送 JSON 命令和控制帧。
-3. `EWM22` 把这些数据通过 UART 透传给 `STM32F407`。
+3. `ATK-BLE04` 把这些数据通过 UART 透传给 `STM32F407`。
 4. `STM32F407` 解析：
    - 远程控制帧
    - 参数配置命令
@@ -220,7 +220,7 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 
 
 - 现场确认哪一路串口对应哪一个控制器
 - 快速验证后驱双轮和前转向是否通电、是否能响应
-- 在不经过 BLE / EWM22 / App 主链路时，单独验证控制器行为
+- 在不经过 BLE 透传桥 / App 主链路时，单独验证控制器行为
 
 ### 4.2 机械转向控制器
 
@@ -882,8 +882,8 @@ App 现在已经按这些真实字段显示状态，而不是本地乱猜。
 | --- | --- | --- | --- |
 | 油门 ADC | `PA0` | 输入 | 右踏板模拟量 |
 | 刹车 / 急停踏板 ADC | `PA1` | 输入 | 左踏板模拟量 |
-| EWM22 UART TX | `PA9` | 输出 | STM32 发到 EWM22 |
-| EWM22 UART RX | `PA10` | 输入 | EWM22 发到 STM32 |
+| ATK-BLE04 UART TX | `PA9` | 输出 | STM32 发到 ATK-BLE04 |
+| ATK-BLE04 UART RX | `PA10` | 输入 | ATK-BLE04 发到 STM32 |
 | 本地前进 / 后退挡位 | `PB10` | 输入 | `0=D, 1=R` |
 | 硬件急停输入 | `PB11` | 输入 | 低电平有效 |
 | 机械转向 + 方向盘 CAN RX | `PB12` | 输入 | `CAN2_RX` |
@@ -969,7 +969,7 @@ App 现在已经按这些真实字段显示状态，而不是本地乱猜。
 - `STM线控控制文件夹/STM32F407_Ackermann_Chassis/Src/main.c`
 - `STM线控控制文件夹/STM32F407_Ackermann_Chassis/Src/board_io.c`
 
-### 9.5 EWM22 与 STM32 的 UART 接线
+### 9.5 ATK-BLE04 与 STM32 的 UART 接线
 
 当前 UART 使用：
 
@@ -977,15 +977,15 @@ App 现在已经按这些真实字段显示状态，而不是本地乱猜。
 
 引脚：
 
-- `PA9 -> EWM22_TX`
-- `PA10 -> EWM22_RX`
+- `PA9 -> ATK-BLE04_RXD`
+- `PA10 -> ATK-BLE04_TXD`
 
 接线关系注意要交叉：
 
-- `STM32 PA9 (TX)` -> `EWM22 RX`
-- `STM32 PA10 (RX)` -> `EWM22 TX`
-- `STM32 GND` -> `EWM22 GND`
-- `STM32 3.3V/模块允许的供电` -> `EWM22 VCC`
+- `STM32 PA9 (TX)` -> `ATK-BLE04 RXD`
+- `STM32 PA10 (RX)` -> `ATK-BLE04 TXD`
+- `STM32 GND` -> `ATK-BLE04 GND`
+- `STM32 3.3V/模块允许的供电` -> `ATK-BLE04 VCC`
 
 当前波特率：
 
@@ -1328,7 +1328,7 @@ App 现在会在以下场景弹窗：
   - `STM线控控制文件夹/STM32F407_Ackermann_Chassis/Src/vehicle_config.c`
 - IO 读取：
   - `STM线控控制文件夹/STM32F407_Ackermann_Chassis/Src/board_io.c`
-- EWM22 透传：
+- ATK-BLE04 透传：
   - `STM线控控制文件夹/STM32F407_Ackermann_Chassis/Src/ewm22_link.c`
 - 驱动轮控制器适配：
   - `STM线控控制文件夹/STM32F407_Ackermann_Chassis/Src/drive_controller_mssd.c`
@@ -1405,7 +1405,7 @@ App 现在会在以下场景弹窗：
 
 - 手机机型
 - 蓝牙 MTU
-- EWM22 当前固件版本
+- ATK-BLE04 当前固件版本
 - 现场干扰
 
 所以“App 和 STM32 功能契合”这句话可以成立，但“任何手机上都绝对零延迟零丢包”这种话目前不能写。
@@ -1418,7 +1418,7 @@ App 现在会在以下场景弹窗：
 
 1. 先给 STM32 上电。
 2. 确认 `USB CDC` 能连上。
-3. 确认 `EWM22` 模块已上电，蓝牙可被手机扫描。
+3. 确认 `ATK-BLE04` 模块已上电，蓝牙可被手机扫描。
 4. 确认 `CAN1` 上驱动轮控制器供电正常。
 5. 确认 `CAN2` 上机械转向和线性方向盘控制器都供电正常。
 6. 不要先开远程，先看 App 状态页是否有真实在线回包。

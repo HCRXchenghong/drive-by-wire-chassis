@@ -1,4 +1,4 @@
-Src/usbd_desc.o: ../Src/usbd_desc.c \
+Src\usbd_desc.o: ..\Src\usbd_desc.c \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h \
  ../Inc/usbd_conf.h ../Inc/main.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h \

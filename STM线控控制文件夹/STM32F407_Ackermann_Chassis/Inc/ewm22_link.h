@@ -32,6 +32,7 @@ typedef struct
   bool tcp_client_started;
   bool tcp_connected;
   uint32_t last_rx_tick_ms;
+  uint32_t last_any_rx_tick_ms;
   uint32_t last_seq;
   ewm22_remote_source_t remote_source;
   ewm22_remote_gear_t gear;

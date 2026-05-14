@@ -1,4 +1,4 @@
-Src/usb_device.o: ../Src/usb_device.c ../Inc/usb_device.h \
+Src\usb_device.o: ..\Src\usb_device.c ../Inc/usb_device.h \
  ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h \
  ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h \
  ../Drivers/CMSIS/Include/core_cm4.h \

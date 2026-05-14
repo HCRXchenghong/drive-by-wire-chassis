@@ -5,8 +5,10 @@
 /* 2026-04-27 USB-CAN live capture confirmed left runtime speed at 0x14/0x15. */
 #define MSSD_REG_LEFT_SPEED_HIGH 0x0014U
 #define MSSD_REG_LEFT_SPEED_LOW 0x0015U
-#define MSSD_FEEDBACK_QUERY_PERIOD_MS 5U
-#define MSSD_FEEDBACK_TIMEOUT_MS 40U
+#define MSSD_FEEDBACK_QUERY_PERIOD_MS 80U
+#define MSSD_FEEDBACK_TIMEOUT_MS 150U
+#define MSSD_WRITE_ACK_TIMEOUT_MS 200U
+#define MSSD_WRITE_COOKIE_FLAG 0x80000000UL
 
 static void mssd_build_write32(uint8_t *frame, uint16_t reg_addr, int32_t value)
 {
@@ -76,6 +78,11 @@ static uint32_t mssd_feedback_cookie(const mssd_drive_controller_t *controller, 
   }
 
   return (((uint32_t)controller->node_id & 0x7FFU) << 16) | (uint32_t)reg_addr;
+}
+
+static uint32_t mssd_write_cookie(const mssd_drive_controller_t *controller, uint16_t reg_addr)
+{
+  return MSSD_WRITE_COOKIE_FLAG | mssd_feedback_cookie(controller, reg_addr);
 }
 
 static void mssd_invalidate_feedback_cache(mssd_drive_controller_t *controller)
@@ -207,6 +214,40 @@ static void mssd_drain_feedback_results(mssd_drive_controller_t *controller)
   } while (consumed);
 }
 
+static void mssd_drain_write_results(mssd_drive_controller_t *controller)
+{
+  static const uint16_t regs[] = {
+      0x0038U,
+      0x0039U,
+      0x003CU,
+      0x003DU};
+  bool consumed = false;
+  size_t index;
+
+  if ((controller == NULL) || (controller->hcan == NULL))
+  {
+    return;
+  }
+
+  do
+  {
+    consumed = false;
+
+    for (index = 0U; index < (sizeof(regs) / sizeof(regs[0])); ++index)
+    {
+      can_transport_read_result_t result;
+      uint32_t cookie = mssd_write_cookie(controller, regs[index]);
+
+      if (!can_transport_take_read_result(controller->hcan, cookie, &result))
+      {
+        continue;
+      }
+
+      consumed = true;
+    }
+  } while (consumed);
+}
+
 static void mssd_sync_recovery_state(mssd_drive_controller_t *controller)
 {
   can_transport_bus_state_t bus_state;
@@ -259,6 +300,58 @@ static bool mssd_queue_read16(const mssd_drive_controller_t *controller, uint16_
                                       &sequence);
 }
 
+static bool mssd_queue_write32(const mssd_drive_controller_t *controller,
+                               uint16_t reg_addr,
+                               int32_t value,
+                               can_transport_priority_t priority)
+{
+  uint8_t frame[8];
+  uint32_t sequence = 0U;
+
+  if ((controller == NULL) || (controller->hcan == NULL))
+  {
+    return false;
+  }
+
+  mssd_build_write32(frame, reg_addr, value);
+  return can_transport_queue_read_std(controller->hcan,
+                                      controller->node_id,
+                                      frame,
+                                      sizeof(frame),
+                                      MSSD_WRITE_ACK_TIMEOUT_MS,
+                                      mssd_write_cookie(controller, reg_addr),
+                                      0x60U,
+                                      (uint16_t)(0x4000U + reg_addr),
+                                      priority,
+                                      &sequence);
+}
+
+static bool mssd_queue_write16(const mssd_drive_controller_t *controller,
+                               uint16_t reg_addr,
+                               uint16_t value,
+                               can_transport_priority_t priority)
+{
+  uint8_t frame[8];
+  uint32_t sequence = 0U;
+
+  if ((controller == NULL) || (controller->hcan == NULL))
+  {
+    return false;
+  }
+
+  mssd_build_write16(frame, reg_addr, value);
+  return can_transport_queue_read_std(controller->hcan,
+                                      controller->node_id,
+                                      frame,
+                                      sizeof(frame),
+                                      MSSD_WRITE_ACK_TIMEOUT_MS,
+                                      mssd_write_cookie(controller, reg_addr),
+                                      0x60U,
+                                      (uint16_t)(0x4000U + reg_addr),
+                                      priority,
+                                      &sequence);
+}
+
 void mssd_drive_controller_bind(mssd_drive_controller_t *controller, CAN_HandleTypeDef *hcan, uint16_t node_id)
 {
   if (controller == NULL)
@@ -295,23 +388,12 @@ bool mssd_drive_controller_set_wheel_rpm_priority(const mssd_drive_controller_t 
                                                   int32_t left_rpm,
                                                   can_transport_priority_t priority)
 {
-  uint8_t right_frame[8];
-  uint8_t left_frame[8];
-
-  if ((controller == NULL) || (controller->hcan == NULL))
+  if (!mssd_queue_write32(controller, 0x0039U, right_rpm, priority))
   {
     return false;
   }
 
-  mssd_build_write32(right_frame, 0x0039U, right_rpm);
-  mssd_build_write32(left_frame, 0x003DU, left_rpm);
-
-  if (!can_transport_queue_write_std(controller->hcan, controller->node_id, right_frame, sizeof(right_frame), priority))
-  {
-    return false;
-  }
-
-  return can_transport_queue_write_std(controller->hcan, controller->node_id, left_frame, sizeof(left_frame), priority);
+  return mssd_queue_write32(controller, 0x003DU, left_rpm, priority);
 }
 
 bool mssd_drive_controller_set_wheel_rpm(const mssd_drive_controller_t *controller, int32_t right_rpm, int32_t left_rpm)
@@ -328,23 +410,12 @@ bool mssd_drive_controller_set_stop_mode_priority(const mssd_drive_controller_t 
                                                   mssd_stop_mode_t left_mode,
                                                   can_transport_priority_t priority)
 {
-  uint8_t right_frame[8];
-  uint8_t left_frame[8];
-
-  if ((controller == NULL) || (controller->hcan == NULL))
+  if (!mssd_queue_write16(controller, 0x0038U, (uint16_t)right_mode, priority))
   {
     return false;
   }
 
-  mssd_build_write16(right_frame, 0x0038U, (uint16_t)right_mode);
-  mssd_build_write16(left_frame, 0x003CU, (uint16_t)left_mode);
-
-  if (!can_transport_queue_write_std(controller->hcan, controller->node_id, right_frame, sizeof(right_frame), priority))
-  {
-    return false;
-  }
-
-  return can_transport_queue_write_std(controller->hcan, controller->node_id, left_frame, sizeof(left_frame), priority);
+  return mssd_queue_write16(controller, 0x003CU, (uint16_t)left_mode, priority);
 }
 
 bool mssd_drive_controller_set_stop_mode(const mssd_drive_controller_t *controller,
@@ -386,7 +457,7 @@ bool mssd_drive_controller_stop(const mssd_drive_controller_t *controller)
   return mssd_drive_controller_stop_priority(controller, CAN_TRANSPORT_PRIORITY_HIGH);
 }
 
-void mssd_drive_controller_feedback_process(mssd_drive_controller_t *controller)
+void mssd_drive_controller_service(mssd_drive_controller_t *controller, bool enable_feedback_query)
 {
   uint32_t now;
   uint16_t next_reg;
@@ -397,9 +468,15 @@ void mssd_drive_controller_feedback_process(mssd_drive_controller_t *controller)
   }
 
   mssd_sync_recovery_state(controller);
+  mssd_drain_write_results(controller);
   mssd_drain_feedback_results(controller);
 
   if (controller->feedback_request_pending)
+  {
+    return;
+  }
+
+  if (!enable_feedback_query)
   {
     return;
   }
@@ -421,6 +498,11 @@ void mssd_drive_controller_feedback_process(mssd_drive_controller_t *controller)
   controller->pending_feedback_reg_index = controller->next_feedback_reg_index;
   controller->last_feedback_query_tick_ms = now;
   controller->next_feedback_reg_index = (uint8_t)((controller->next_feedback_reg_index + 1U) & 0x03U);
+}
+
+void mssd_drive_controller_feedback_process(mssd_drive_controller_t *controller)
+{
+  mssd_drive_controller_service(controller, true);
 }
 
 bool mssd_drive_controller_get_feedback(const mssd_drive_controller_t *controller, mssd_drive_feedback_t *feedback)

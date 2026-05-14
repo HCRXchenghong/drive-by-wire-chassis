@@ -1,5 +1,5 @@
-Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.o: \
- ../Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c \
+Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_core.o: \
+ ..\Middlewares\ST\STM32_USB_Device_Library\Core\Src\usbd_core.c \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h \
  ../Inc/usbd_conf.h ../Inc/main.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h \

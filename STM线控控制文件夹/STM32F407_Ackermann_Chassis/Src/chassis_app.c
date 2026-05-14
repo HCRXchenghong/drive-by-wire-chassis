@@ -17,7 +17,8 @@
 #include <string.h>
 
 #define DRIVE_CAN_NODE_ID 1U
-#define CONTROL_LOOP_PERIOD_MS 20U
+#define CONTROL_LOOP_PERIOD_MS 50U
+#define CONTROL_SAFETY_STOP_PERIOD_MS 50U
 #define CONTROL_STEER_INPUT_LIMIT 1000
 #define CONTROL_DEFAULT_DRIVE_MAX_RPM 500U
 #define CONTROL_MIN_DRIVE_MAX_RPM 50U
@@ -30,20 +31,39 @@
 #define REMOTE_CONTROL_TIMEOUT_MS 250U
 #define REMOTE_BUTTON_ESTOP_MASK 0x0001U
 #define REMOTE_BUTTON_SOFT_STOP_MASK 0x0002U
-#define STATUS_PUBLISH_PERIOD_MS 200U
+/* Broadcast the rich chassis_status every 500 ms instead of 200 ms.
+ * The payload is ~500 bytes per frame.  On phones where BLE MTU
+ * negotiation falls back to the default 23 bytes, the BLE bridge TX
+ * buffer cannot keep up with 200 ms * 700 B (~3.5 KB/s) and backlogs,
+ * which in turn causes UART backpressure and the classic
+ * "online/offline" sawtooth on the dashboard.  At 500 ms the average
+ * rate drops to ~1 KB/s which is well within even the worst MTU-20
+ * Android BLE throughput.  The App still polls get_status once per
+ * second as a safety net. */
+#define STATUS_PUBLISH_PERIOD_MS 500U
 #define LINEAR_STEERING_ACTIVITY_WINDOW_MS 5000U
+/* If the BLE bridge has produced any UART byte within this window we assume a host
+ * (phone app via BLE transparent bridge, or serial shell via USB CDC) is
+ * listening and keep pushing the 200 ms chassis_status broadcast.  This is
+ * needed because the "BLE CONNECT" URC is not emitted by every bridge firmware
+ * build, and the app does not send control frames while the user is on the
+ * profile / status / settings tab — without this window the broadcast would
+ * stop and the dashboard would flash "未连接/离线". */
+#define REMOTE_LINK_ACTIVITY_WINDOW_MS 3000U
 #define PEDAL_SAMPLE_TARGET_COUNT 5U
-#define STEERING_FEEDBACK_STALE_MS 250U
-#define DRIVE_FEEDBACK_STALE_MS 250U
+#define STEERING_FEEDBACK_STALE_MS 1200U
+#define DRIVE_FEEDBACK_STALE_MS 1000U
 #define PEDAL_ACTIVE_THRESHOLD 0.05f
 #define VEHICLE_MOTION_HOLD_MS 1500U
-#define VEHICLE_ACTUAL_MOTION_HOLD_MS 250U
+#define VEHICLE_ACTUAL_MOTION_HOLD_MS 1000U
 #define VEHICLE_TARGET_RPM_MOVING_THRESHOLD 15
 #define STEERING_LIMIT_CLAMP_RATIO 0.95f
 #define STEERING_POSITION_DEADBAND_DEG 0.5f
 #define STEERING_POSITION_MIN_RPM 12.0f
 #define STEERING_POSITION_KP 4.0f
 #define STEERING_FEEDBACK_BOOT_GRACE_MS 1200U
+#define DEBUG_TEST_DEFAULT_DURATION_MS 500U
+#define DEBUG_TEST_MAX_DURATION_MS 1500U
 
 static mssd_drive_controller_t s_drive_controller;
 static mssc_steering_controller_t s_steer_controller;
@@ -114,6 +134,7 @@ typedef struct
   uint32_t last_control_tick_ms;
   uint32_t last_motion_tick_ms;
   uint32_t last_actual_motion_tick_ms;
+  uint32_t last_drive_safety_stop_tick_ms;
 } chassis_control_state_t;
 
 typedef struct
@@ -177,6 +198,10 @@ static chassis_fault_state_t s_fault_state;
 static chassis_calibration_runtime_t s_calibration_runtime;
 static pedal_sample_accumulator_t s_left_pedal_samples;
 static pedal_sample_accumulator_t s_right_pedal_samples;
+static uint32_t s_drive_test_start_tick_ms = 0U;
+static uint32_t s_drive_test_duration_ms = 0U;
+static uint32_t s_steer_test_start_tick_ms = 0U;
+static uint32_t s_steer_test_duration_ms = 0U;
 
 static int ascii_stricmp(const char *lhs, const char *rhs)
 {
@@ -355,60 +380,6 @@ static bool json_get_string(const char *line, const char *key, char *value, size
   return true;
 }
 
-static void json_escape_string(const char *input, char *output, size_t output_len)
-{
-  size_t out_index = 0U;
-
-  if ((output == NULL) || (output_len == 0U))
-  {
-    return;
-  }
-
-  if (input == NULL)
-  {
-    output[0] = '\0';
-    return;
-  }
-
-  while ((*input != '\0') && ((out_index + 1U) < output_len))
-  {
-    char ch = *input++;
-
-    if ((ch == '\\') || (ch == '"'))
-    {
-      if ((out_index + 2U) >= output_len)
-      {
-        break;
-      }
-
-      output[out_index++] = '\\';
-      output[out_index++] = ch;
-      continue;
-    }
-
-    if ((ch == '\r') || (ch == '\n'))
-    {
-      if ((out_index + 2U) >= output_len)
-      {
-        break;
-      }
-
-      output[out_index++] = '\\';
-      output[out_index++] = (ch == '\r') ? 'r' : 'n';
-      continue;
-    }
-
-    if ((unsigned char)ch < 0x20U)
-    {
-      continue;
-    }
-
-    output[out_index++] = ch;
-  }
-
-  output[out_index] = '\0';
-}
-
 static bool command_is(const char *line, const char *command)
 {
   char value[32];
@@ -474,14 +445,14 @@ static bool reply_write(const char *text)
 
 static bool reply_printf(const char *fmt, ...)
 {
-  char buffer[2048];
+  static char s_reply_printf_buffer[2048];
   va_list args;
 
   va_start(args, fmt);
-  (void)vsnprintf(buffer, sizeof(buffer), fmt, args);
+  (void)vsnprintf(s_reply_printf_buffer, sizeof(s_reply_printf_buffer), fmt, args);
   va_end(args);
 
-  return reply_write(buffer);
+  return reply_write(s_reply_printf_buffer);
 }
 
 static const char *chassis_fault_code_name(chassis_fault_code_t code)
@@ -522,12 +493,13 @@ static const char *chassis_fault_domain_name(chassis_fault_domain_t domain)
   }
 }
 
+static const char *chassis_fault_message_zh(chassis_fault_code_t code) __attribute__((unused));
 static const char *chassis_fault_message_zh(chassis_fault_code_t code)
 {
   switch (code)
   {
     case CHASSIS_FAULT_CODE_DRIVE_REPLY_TIMEOUT:
-      return "驱动 CAN 回复超时，已锁停并等待自动恢复";
+      return "驱动 CAN 回复超时，控制不中断，请检查驱动回读";
     case CHASSIS_FAULT_CODE_STEER_REPLY_TIMEOUT:
       return "机械转向 CAN 回复超时，已禁止行驶并等待自动恢复";
     case CHASSIS_FAULT_CODE_HANDWHEEL_REPLY_TIMEOUT:
@@ -680,6 +652,17 @@ static void control_reset_targets(void)
   s_control_state.vehicle_moving = preferred_vehicle_motion_state() || calibration_override_active();
 }
 
+static void control_zero_drive_targets(drive_command_mode_t mode)
+{
+  s_control_state.drive_base_rpm = 0;
+  s_control_state.right_target_rpm = 0;
+  s_control_state.left_target_rpm = 0;
+  s_control_state.drive_command_mode = mode;
+  s_control_state.remote_active = false;
+  s_control_state.vehicle_moving_command = false;
+  s_control_state.last_motion_tick_ms = 0U;
+}
+
 static void control_stop_outputs(void)
 {
   if (s_drive_can_ready)
@@ -694,6 +677,9 @@ static void control_stop_outputs(void)
   }
 
   control_reset_targets();
+  s_control_state.last_drive_safety_stop_tick_ms = 0U;
+  s_drive_test_duration_ms = 0U;
+  s_steer_test_duration_ms = 0U;
 }
 
 static void control_set_enabled(bool enabled)
@@ -826,6 +812,34 @@ static bool remote_command_is_fresh(const ewm22_link_state_t *remote_state, uint
   return ((now - remote_state->last_rx_tick_ms) <= REMOTE_CONTROL_TIMEOUT_MS);
 }
 
+static bool remote_link_has_listener(const ewm22_link_state_t *remote_state, uint32_t now)
+{
+  if (remote_state == NULL)
+  {
+    return false;
+  }
+
+  if (remote_state->ble_connected || remote_state->tcp_connected)
+  {
+    return true;
+  }
+
+  if (remote_command_is_fresh(remote_state, now))
+  {
+    return true;
+  }
+
+/* Any UART traffic from the BLE bridge in the recent window implies the BLE peripheral
+   * is bridging data for a connected central. */
+  if ((remote_state->last_any_rx_tick_ms != 0U) &&
+      ((now - remote_state->last_any_rx_tick_ms) <= REMOTE_LINK_ACTIVITY_WINDOW_MS))
+  {
+    return true;
+  }
+
+  return false;
+}
+
 static bool remote_drive_authority_active(const ewm22_link_state_t *remote_state, uint32_t now)
 {
   return s_control_state.remote_takeover_enabled && remote_command_is_fresh(remote_state, now);
@@ -843,7 +857,17 @@ static const char *control_owner_name(const ewm22_link_state_t *remote_state, ui
 
 static bool chassis_service_actions_locked(void)
 {
-  return preferred_vehicle_motion_state() || calibration_override_active();
+  if (calibration_override_active())
+  {
+    return true;
+  }
+
+  if (s_control_state.emergency_stop_active || s_control_state.soft_stop_active)
+  {
+    return drive_feedback_available() && s_control_state.vehicle_moving_actual;
+  }
+
+  return preferred_vehicle_motion_state();
 }
 
 static void controllers_bind_from_config(void)
@@ -865,12 +889,6 @@ static void controllers_bind_from_config(void)
                                   s_steer_can_handle,
                                   config->handwheel_can_node_id,
                                   10U);
-
-    if (s_steer_can_ready)
-    {
-      (void)mssc_steering_controller_prepare_for_can_control(&s_steer_controller);
-      (void)mssc_steering_controller_prepare_for_can_control(&s_handwheel_controller);
-    }
   }
 }
 
@@ -933,14 +951,18 @@ static bool handwheel_feedback_get(int32_t *position_raw, uint32_t *age_ms)
 
 static void handwheel_feedback_update(void)
 {
+  const vehicle_config_t *config = vehicle_config_get();
   int32_t position_raw = 0;
+  bool enable_feedback_query = false;
 
   if (!s_steer_can_ready)
   {
     return;
   }
 
-  mssc_steering_controller_feedback_process(&s_handwheel_controller);
+  enable_feedback_query = (config->linear_steering_enabled != 0U) ||
+                          s_calibration_runtime.handwheel_override_active;
+  mssc_steering_controller_service(&s_handwheel_controller, enable_feedback_query);
   if (handwheel_feedback_get(&position_raw, NULL))
   {
     s_calibration_runtime.handwheel_estimate = position_raw;
@@ -950,11 +972,25 @@ static void handwheel_feedback_update(void)
 static void drive_feedback_update(void)
 {
   const vehicle_config_t *config = vehicle_config_get();
+  const board_io_state_t *io_state = board_io_get();
+  const ewm22_link_state_t *remote_state = ewm22_link_get_state();
   mssd_drive_feedback_t feedback;
   bool right_recent = false;
   bool left_recent = false;
   bool actual_motion_present = false;
+  bool feedback_query_allowed = false;
   uint32_t now = HAL_GetTick();
+  float throttle = pedal_raw_to_normalized(io_state->throttle_raw,
+                                           config->throttle_raw_min,
+                                           config->throttle_raw_max);
+  float brake = pedal_raw_to_normalized(io_state->brake_raw,
+                                        config->brake_raw_min,
+                                        config->brake_raw_max);
+  bool local_drive_requested = (throttle > PEDAL_ACTIVE_THRESHOLD) || (brake > PEDAL_ACTIVE_THRESHOLD);
+  bool remote_drive_requested =
+      remote_drive_authority_active(remote_state, now) &&
+      (remote_state->gear != EWM22_REMOTE_GEAR_N) &&
+      int32_abs_exceeds(remote_state->throttle, VEHICLE_TARGET_RPM_MOVING_THRESHOLD);
 
   if (!s_drive_can_ready)
   {
@@ -966,7 +1002,13 @@ static void drive_feedback_update(void)
     return;
   }
 
-  mssd_drive_controller_feedback_process(&s_drive_controller);
+  feedback_query_allowed =
+      !local_drive_requested &&
+      !remote_drive_requested &&
+      !s_control_state.vehicle_moving_command &&
+      !calibration_override_active();
+
+  mssd_drive_controller_service(&s_drive_controller, feedback_query_allowed);
   if (mssd_drive_controller_get_feedback(&s_drive_controller, &feedback))
   {
     s_control_state.right_actual_rpm =
@@ -1014,7 +1056,6 @@ static void fault_state_refresh(void)
   chassis_fault_state_t next_fault_state;
   bool drive_bus_fault = false;
   bool steer_bus_fault = false;
-  bool drive_reply_fault = false;
   bool steer_reply_fault = false;
   bool handwheel_reply_fault = false;
   bool steering_feedback_lost = false;
@@ -1036,7 +1077,6 @@ static void fault_state_refresh(void)
         next_fault_state.can_recovery_active || steer_bus_state.recovery_active;
   }
 
-  drive_reply_fault = s_drive_can_ready && mssd_drive_controller_feedback_fault_active(&s_drive_controller);
   steer_reply_fault = s_steer_can_ready && mssc_steering_controller_feedback_fault_active(&s_steer_controller);
   handwheel_reply_fault =
       config->linear_steering_enabled &&
@@ -1048,10 +1088,11 @@ static void fault_state_refresh(void)
       !steering_feedback_is_recent() &&
       (mssc_steering_controller_last_feedback_ok_age_ms(&s_steer_controller) > STEERING_FEEDBACK_STALE_MS);
 
-  next_fault_state.drive_can_fault = drive_bus_fault || drive_reply_fault;
+  next_fault_state.drive_can_fault = drive_bus_fault;
   next_fault_state.steer_can_fault = steer_bus_fault || steer_reply_fault || steering_feedback_lost;
   next_fault_state.handwheel_can_fault = handwheel_reply_fault;
-  next_fault_state.outputs_locked = next_fault_state.drive_can_fault || next_fault_state.steer_can_fault;
+  /* A drive feedback timeout should not block steering jog or steering-only tests. */
+  next_fault_state.outputs_locked = next_fault_state.steer_can_fault || drive_bus_fault;
 
   if (next_fault_state.steer_can_fault)
   {
@@ -1072,8 +1113,7 @@ static void fault_state_refresh(void)
   else if (next_fault_state.drive_can_fault)
   {
     next_fault_state.domain = CHASSIS_FAULT_DOMAIN_DRIVE_CAN;
-    next_fault_state.code = drive_bus_fault ? CHASSIS_FAULT_CODE_DRIVE_BUS_ERROR
-                                            : CHASSIS_FAULT_CODE_DRIVE_REPLY_TIMEOUT;
+    next_fault_state.code = CHASSIS_FAULT_CODE_DRIVE_BUS_ERROR;
   }
   else if (next_fault_state.handwheel_can_fault)
   {
@@ -1135,6 +1175,25 @@ static bool drive_controller_apply_outputs(drive_command_mode_t mode, int32_t ri
   }
 }
 
+static void control_drive_safety_stop(uint32_t now, drive_command_mode_t stop_mode)
+{
+  control_zero_drive_targets(stop_mode);
+
+  if (!s_drive_can_ready)
+  {
+    return;
+  }
+
+  if ((s_control_state.last_drive_safety_stop_tick_ms != 0U) &&
+      ((now - s_control_state.last_drive_safety_stop_tick_ms) < CONTROL_SAFETY_STOP_PERIOD_MS))
+  {
+    return;
+  }
+
+  s_control_state.last_drive_safety_stop_tick_ms = now;
+  (void)drive_controller_apply_outputs(stop_mode, 0, 0);
+}
+
 static float control_compute_mode_split(const vehicle_config_t *config,
                                         drive_mode_t mode,
                                         float actual_steer_angle_deg,
@@ -1176,8 +1235,18 @@ static float control_compute_mode_split(const vehicle_config_t *config,
 
 static void calibration_runtime_update(void)
 {
-  steering_feedback_update();
-  handwheel_feedback_update();
+  static uint8_t next_feedback_target = 0U;
+
+  if (next_feedback_target == 0U)
+  {
+    steering_feedback_update();
+    next_feedback_target = 1U;
+  }
+  else
+  {
+    handwheel_feedback_update();
+    next_feedback_target = 0U;
+  }
 }
 
 static void control_update_targets(void)
@@ -1202,6 +1271,7 @@ static void control_update_targets(void)
   drive_command_mode_t drive_command_mode = DRIVE_COMMAND_NORMAL_STOP;
   bool remote_fresh = remote_command_is_fresh(remote_state, now);
   bool remote_drive_active = remote_drive_authority_active(remote_state, now);
+  bool remote_takeover_stale = s_control_state.remote_takeover_enabled && !remote_fresh;
   bool throttle_active = (throttle > PEDAL_ACTIVE_THRESHOLD);
   bool brake_active = (brake > PEDAL_ACTIVE_THRESHOLD);
   bool hardware_estop_active = io_state->hardware_estop_active;
@@ -1227,7 +1297,9 @@ static void control_update_targets(void)
 
   s_control_state.hardware_estop_active = hardware_estop_active;
   s_control_state.local_control_active =
-      (!remote_drive_active) && (throttle_active || brake_active || hardware_estop_active);
+      (!s_control_state.remote_takeover_enabled) &&
+      (!remote_drive_active) &&
+      (throttle_active || brake_active || hardware_estop_active);
 
   if (hardware_estop_active || local_estop_active || remote_estop_active)
   {
@@ -1239,6 +1311,15 @@ static void control_update_targets(void)
     s_control_state.emergency_stop_active = true;
   }
   else if (remote_soft_stop_active)
+  {
+    demand = 0.0f;
+    steer_input = 0;
+    drive_command_mode = DRIVE_COMMAND_NORMAL_STOP;
+    s_control_state.remote_active = false;
+    s_control_state.soft_stop_active = true;
+    s_control_state.emergency_stop_active = false;
+  }
+  else if (remote_takeover_stale)
   {
     demand = 0.0f;
     steer_input = 0;
@@ -1391,6 +1472,10 @@ static void control_update_targets(void)
   {
     s_control_state.last_motion_tick_ms = now;
   }
+  else if (s_control_state.emergency_stop_active || s_control_state.soft_stop_active)
+  {
+    s_control_state.last_motion_tick_ms = 0U;
+  }
 
   s_control_state.vehicle_moving_command =
       ((s_control_state.last_motion_tick_ms != 0U) &&
@@ -1405,11 +1490,13 @@ static void control_process(void)
 
   if (!control_outputs_allowed())
   {
+    control_drive_safety_stop(now, DRIVE_COMMAND_ESTOP);
     return;
   }
 
   if (calibration_override_active())
   {
+    control_drive_safety_stop(now, DRIVE_COMMAND_NORMAL_STOP);
     return;
   }
 
@@ -1467,8 +1554,37 @@ static void calibration_process(void)
   }
 }
 
+static void debug_test_watchdog_process(void)
+{
+  uint32_t now = HAL_GetTick();
+
+  if ((s_drive_test_duration_ms != 0U) &&
+      ((now - s_drive_test_start_tick_ms) >= s_drive_test_duration_ms))
+  {
+    s_drive_test_duration_ms = 0U;
+    if (s_drive_can_ready)
+    {
+      (void)mssd_drive_controller_stop_priority(&s_drive_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
+    }
+    control_set_enabled(true);
+  }
+
+  if ((s_steer_test_duration_ms != 0U) &&
+      ((now - s_steer_test_start_tick_ms) >= s_steer_test_duration_ms))
+  {
+    s_steer_test_duration_ms = 0U;
+    if (s_steer_can_ready)
+    {
+      (void)mssc_steering_controller_stop_priority(&s_steer_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
+      (void)mssc_steering_controller_stop_priority(&s_handwheel_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
+    }
+    control_set_enabled(true);
+  }
+}
+
 static void publish_remote_status_if_needed(void)
 {
+  static char s_remote_status_buffer[1024];
   const vehicle_config_t *config = vehicle_config_get();
   const board_io_state_t *io_state = board_io_get();
   const ewm22_link_state_t *remote_state = ewm22_link_get_state();
@@ -1479,15 +1595,10 @@ static void publish_remote_status_if_needed(void)
   bool left_feedback_recent = false;
   bool outputs_enabled = control_outputs_allowed();
   uint32_t now = HAL_GetTick();
-  bool remote_fresh = remote_command_is_fresh(remote_state, now);
   uint32_t steering_feedback_age_ms = 0U;
   int32_t steering_feedback_raw = 0;
-  can_transport_bus_state_t drive_bus_state = {0};
-  can_transport_bus_state_t steer_bus_state = {0};
   bool steering_feedback_valid = steering_feedback_get(&steering_feedback_raw, &steering_feedback_age_ms) &&
                                  steering_feedback_is_recent();
-  char fault_message_json[192];
-  char buffer[1400];
 
   if (s_drive_can_ready && mssd_drive_controller_get_feedback(&s_drive_controller, &drive_feedback))
   {
@@ -1496,13 +1607,7 @@ static void publish_remote_status_if_needed(void)
     left_feedback_recent = drive_feedback.left_valid && (drive_feedback.left_age_ms <= DRIVE_FEEDBACK_STALE_MS);
   }
 
-  (void)can_transport_get_bus_state(s_drive_can_handle, &drive_bus_state);
-  (void)can_transport_get_bus_state(s_steer_can_handle, &steer_bus_state);
-  json_escape_string(chassis_fault_message_zh(s_fault_state.code),
-                     fault_message_json,
-                     sizeof(fault_message_json));
-
-  if (!(remote_state->ble_connected || remote_state->tcp_connected || remote_fresh))
+  if (!remote_link_has_listener(remote_state, now))
   {
     return;
   }
@@ -1516,30 +1621,23 @@ static void publish_remote_status_if_needed(void)
   s_telemetry_state.status_publish_seq++;
 
   (void)snprintf(
-      buffer,
-      sizeof(buffer),
-      "{\"cmd\":\"chassis_status\",\"seq\":%lu,\"dm\":\"%s\",\"ct\":\"%s\",\"da\":\"%s\","
-      "\"g\":\"%s\",\"oe\":%u,\"src\":\"%s\",\"rg\":\"%s\",\"ra\":%u,\"rv\":%u,"
+      s_remote_status_buffer,
+      sizeof(s_remote_status_buffer),
+      "{\"cmd\":\"chassis_status\",\"seq\":%lu,\"dm\":\"%s\","
+      "\"g\":\"%s\",\"oe\":%u,"
       "\"co\":\"%s\",\"rm\":\"%s\",\"rto\":%u,\"lca\":%u,\"mov\":%u,\"mvc\":%u,\"mva\":%u,"
       "\"ssa\":%u,\"esa\":%u,\"hea\":%u,"
-      "\"fault_code\":\"%s\",\"fault_domain\":\"%s\",\"fault_message_zh\":\"%s\","
+      "\"fault_code\":\"%s\",\"fault_domain\":\"%s\","
       "\"dcf\":%u,\"scf\":%u,\"hcf\":%u,\"cra\":%u,"
-      "\"c1bo\":%lu,\"c2bo\":%lu,\"c1lec\":%u,\"c2lec\":%u,"
-      "\"ft\":%u,\"wb\":%u,\"rt\":%u,\"dmr\":%u,\"sid\":%u,\"hid\":%u,\"ls\":%u,\"lsd\":%u,\"ldi\":%u,\"rdi\":%u,"
+      "\"dmr\":%u,\"ls\":%u,\"sid\":%u,\"hid\":%u,\"ldi\":%u,\"rdi\":%u,\"lsd\":%u,"
       "\"thr\":%u,\"brk\":%u,"
       "\"lr\":%ld,\"rr\":%ld,\"lar\":%ld,\"rar\":%ld,\"lav\":%u,\"rav\":%u,\"dfv\":%u,"
-      "\"laa\":%lu,\"raa\":%lu,\"sr\":%d,\"dc\":%u,\"sc\":%u,"
+      "\"sr\":%d,\"dc\":%u,\"sc\":%u,"
       "\"sf\":%ld,\"sfv\":%u,\"sfa\":%lu}\n",
       (unsigned long)s_telemetry_state.status_publish_seq,
       vehicle_config_drive_mode_name(mode),
-      vehicle_config_chassis_type_name((chassis_type_t)config->chassis_type),
-      vehicle_config_drive_axle_name((drive_axle_t)config->drive_axle),
       board_io_gear_name(io_state->gear),
       outputs_enabled ? 1U : 0U,
-      ewm22_link_remote_source_name(remote_state->remote_source),
-      ewm22_link_remote_gear_name(remote_state->gear),
-      s_control_state.remote_active ? 1U : 0U,
-      remote_fresh ? 1U : 0U,
       control_owner_name(remote_state, now),
       remote_control_mode_name(s_control_state.remote_control_mode),
       s_control_state.remote_takeover_enabled ? 1U : 0U,
@@ -1552,25 +1650,17 @@ static void publish_remote_status_if_needed(void)
       s_control_state.hardware_estop_active ? 1U : 0U,
       chassis_fault_code_name(s_fault_state.code),
       chassis_fault_domain_name(s_fault_state.domain),
-      fault_message_json,
       s_fault_state.drive_can_fault ? 1U : 0U,
       s_fault_state.steer_can_fault ? 1U : 0U,
       s_fault_state.handwheel_can_fault ? 1U : 0U,
       s_fault_state.can_recovery_active ? 1U : 0U,
-      (unsigned long)drive_bus_state.bus_off_count,
-      (unsigned long)steer_bus_state.bus_off_count,
-      (unsigned int)drive_bus_state.last_error_code,
-      (unsigned int)steer_bus_state.last_error_code,
-      (unsigned int)config->front_track_mm,
-      (unsigned int)config->wheelbase_mm,
-      (unsigned int)config->rear_track_mm,
       (unsigned int)config->drive_max_rpm,
+      (unsigned int)config->linear_steering_enabled,
       (unsigned int)config->steer_can_node_id,
       (unsigned int)config->handwheel_can_node_id,
-      (unsigned int)config->linear_steering_enabled,
-      linear_steering_detected() ? 1U : 0U,
       (unsigned int)(config->left_drive_inverted ? 1U : 0U),
       (unsigned int)(config->right_drive_inverted ? 1U : 0U),
+      linear_steering_detected() ? 1U : 0U,
       (unsigned int)io_state->throttle_raw,
       (unsigned int)io_state->brake_raw,
       (long)s_control_state.left_target_rpm,
@@ -1580,8 +1670,6 @@ static void publish_remote_status_if_needed(void)
       left_feedback_recent ? 1U : 0U,
       right_feedback_recent ? 1U : 0U,
       (have_drive_feedback && (right_feedback_recent || left_feedback_recent)) ? 1U : 0U,
-      (unsigned long)(left_feedback_recent ? drive_feedback.left_age_ms : 0U),
-      (unsigned long)(right_feedback_recent ? drive_feedback.right_age_ms : 0U),
       (int)s_control_state.steer_target_rpm,
       s_drive_can_ready ? 1U : 0U,
       s_steer_can_ready ? 1U : 0U,
@@ -1589,7 +1677,7 @@ static void publish_remote_status_if_needed(void)
       steering_feedback_valid ? 1U : 0U,
       (unsigned long)steering_feedback_age_ms);
 
-  (void)ewm22_link_send_text(buffer);
+  (void)ewm22_link_send_text(s_remote_status_buffer);
 }
 
 static void reply_capabilities(void)
@@ -1702,156 +1790,76 @@ static void reply_calibration_status(void)
 
 static void reply_status(void)
 {
+  static char s_status_reply_buffer[512];
   const vehicle_config_t *config = vehicle_config_get();
   const board_io_state_t *io_state = board_io_get();
   const ewm22_link_state_t *remote_state = ewm22_link_get_state();
   drive_mode_t mode = vehicle_config_runtime_drive_mode(config);
-  mssd_drive_feedback_t drive_feedback;
-  bool have_drive_feedback = false;
-  bool right_feedback_recent = false;
-  bool left_feedback_recent = false;
   uint32_t now = HAL_GetTick();
   bool remote_fresh = remote_command_is_fresh(remote_state, now);
   uint32_t remote_age_ms = 0U;
-  uint32_t text_age_ms = 0U;
-  uint32_t steering_feedback_age_ms = 0U;
-  int32_t steering_feedback_raw = 0;
-  can_transport_bus_state_t drive_bus_state = {0};
-  can_transport_bus_state_t steer_bus_state = {0};
-  bool steering_feedback_valid = steering_feedback_get(&steering_feedback_raw, &steering_feedback_age_ms) &&
-                                 steering_feedback_is_recent();
-  char ewm22_last_text_json[128];
-  char fault_message_json[192];
 
   if (remote_state->last_rx_tick_ms != 0U)
   {
     remote_age_ms = now - remote_state->last_rx_tick_ms;
   }
 
-  if (remote_state->last_text_tick_ms != 0U)
-  {
-    text_age_ms = HAL_GetTick() - remote_state->last_text_tick_ms;
-  }
-
-  json_escape_string(remote_state->last_text_line,
-                     ewm22_last_text_json,
-                     sizeof(ewm22_last_text_json));
-  json_escape_string(chassis_fault_message_zh(s_fault_state.code),
-                     fault_message_json,
-                     sizeof(fault_message_json));
-
-  if (s_drive_can_ready && mssd_drive_controller_get_feedback(&s_drive_controller, &drive_feedback))
-  {
-    have_drive_feedback = true;
-    right_feedback_recent = drive_feedback.right_valid && (drive_feedback.right_age_ms <= DRIVE_FEEDBACK_STALE_MS);
-    left_feedback_recent = drive_feedback.left_valid && (drive_feedback.left_age_ms <= DRIVE_FEEDBACK_STALE_MS);
-  }
-
-  (void)can_transport_get_bus_state(s_drive_can_handle, &drive_bus_state);
-  (void)can_transport_get_bus_state(s_steer_can_handle, &steer_bus_state);
-
-  (void)reply_printf(
+  /* Keep the ack compact so it fits in a handful of BLE MTU=20 fragments and
+   * never overruns the uni-app bridge's 1024-byte line assembler.  All the
+   * rich telemetry keeps flowing through the 200 ms "chassis_status"
+   * broadcast. */
+  (void)snprintf(
+      s_status_reply_buffer,
+      sizeof(s_status_reply_buffer),
       "{\"cmd\":\"status_ack\",\"ok\":true,"
-      "\"gear\":\"%s\",\"throttle_raw\":%u,\"brake_raw\":%u,"
-      "\"chassis_type\":\"%s\",\"drive_axle\":\"%s\",\"drive_mode\":\"%s\",\"drive_max_rpm\":%u,"
-      "\"control_enabled\":%s,\"steer_input\":%ld,"
-      "\"drive_base_rpm\":%ld,\"right_target_rpm\":%ld,\"left_target_rpm\":%ld,"
-      "\"right_actual_rpm\":%ld,\"left_actual_rpm\":%ld,"
-      "\"right_actual_rpm_valid\":%s,\"left_actual_rpm_valid\":%s,"
-      "\"right_actual_rpm_age_ms\":%lu,\"left_actual_rpm_age_ms\":%lu,"
-      "\"drive_feedback_valid\":%s,"
-      "\"steer_target_rpm\":%d,\"remote_active\":%s,\"remote_valid\":%s,"
-      "\"control_owner\":\"%s\",\"remote_mode\":\"%s\",\"remote_takeover_enabled\":%s,"
-      "\"local_control_active\":%s,\"vehicle_moving\":%s,"
-      "\"vehicle_moving_command\":%s,\"vehicle_moving_actual\":%s,"
-      "\"soft_stop_active\":%s,\"emergency_stop_active\":%s,\"hardware_estop_active\":%s,"
-      "\"outputs_enabled\":%s,\"outputs_locked_by_fault\":%s,"
-      "\"fault_code\":\"%s\",\"fault_domain\":\"%s\",\"fault_message_zh\":\"%s\","
-      "\"drive_can_fault\":%s,\"steer_can_fault\":%s,\"handwheel_can_fault\":%s,"
-      "\"can_recovery_active\":%s,\"can1_bus_off_count\":%lu,\"can2_bus_off_count\":%lu,"
-      "\"can1_last_error_code\":%u,\"can2_last_error_code\":%u,"
-      "\"remote_source\":\"%s\",\"remote_gear\":\"%s\","
-      "\"remote_seq\":%lu,\"remote_throttle\":%d,\"remote_steer\":%d,"
-      "\"remote_aux_x\":%d,\"remote_aux_y\":%d,\"remote_buttons\":%u,"
-      "\"remote_age_ms\":%lu,\"ble_connected\":%s,\"wifi_sta_connected\":%s,"
-      "\"tcp_client_started\":%s,\"tcp_connected\":%s,"
-      "\"ewm22_last_text\":\"%s\",\"ewm22_last_text_age_ms\":%lu,"
-      "\"drive_can_ready\":%s,\"steer_can_ready\":%s,"
-      "\"steer_can_node_id\":%u,\"handwheel_can_node_id\":%u,"
-      "\"linear_steering_enabled\":%s,\"linear_steering_detected\":%s,"
-      "\"left_drive_inverted\":%s,\"right_drive_inverted\":%s,"
-      "\"steering_feedback\":%ld,\"steering_feedback_valid\":%s,\"steering_feedback_age_ms\":%lu}\r\n",
-      board_io_gear_name(io_state->gear),
-      (unsigned int)io_state->throttle_raw,
-      (unsigned int)io_state->brake_raw,
+      "\"ct\":\"%s\",\"da\":\"%s\",\"dm\":\"%s\",\"dmr\":%u,"
+      "\"g\":\"%s\",\"co\":\"%s\",\"rm\":\"%s\","
+      "\"rto\":%u,\"lca\":%u,\"mov\":%u,\"mvc\":%u,\"mva\":%u,"
+      "\"ssa\":%u,\"esa\":%u,\"hea\":%u,\"oe\":%u,\"olf\":%u,"
+      "\"fc\":\"%s\",\"fd\":\"%s\","
+      "\"dcf\":%u,\"scf\":%u,\"hcf\":%u,\"cra\":%u,"
+      "\"ls\":%u,\"lsd\":%u,"
+      "\"thr\":%u,\"brk\":%u,"
+      "\"dc\":%u,\"sc\":%u,\"sid\":%u,\"hid\":%u,\"ldi\":%u,\"rdi\":%u,"
+      "\"rv\":%u,\"ra\":%lu,\"ble_connected\":%u}\n",
       vehicle_config_chassis_type_name((chassis_type_t)config->chassis_type),
       vehicle_config_drive_axle_name((drive_axle_t)config->drive_axle),
       vehicle_config_drive_mode_name(mode),
       (unsigned int)config->drive_max_rpm,
-      s_control_state.control_enabled ? "true" : "false",
-      (long)s_control_state.steer_input,
-      (long)s_control_state.drive_base_rpm,
-      (long)s_control_state.right_target_rpm,
-      (long)s_control_state.left_target_rpm,
-      (long)s_control_state.right_actual_rpm,
-      (long)s_control_state.left_actual_rpm,
-      right_feedback_recent ? "true" : "false",
-      left_feedback_recent ? "true" : "false",
-      (unsigned long)(right_feedback_recent ? drive_feedback.right_age_ms : 0U),
-      (unsigned long)(left_feedback_recent ? drive_feedback.left_age_ms : 0U),
-      (have_drive_feedback && (right_feedback_recent || left_feedback_recent)) ? "true" : "false",
-      (int)s_control_state.steer_target_rpm,
-      s_control_state.remote_active ? "true" : "false",
-      remote_fresh ? "true" : "false",
+      board_io_gear_name(io_state->gear),
       control_owner_name(remote_state, now),
       remote_control_mode_name(s_control_state.remote_control_mode),
-      s_control_state.remote_takeover_enabled ? "true" : "false",
-      s_control_state.local_control_active ? "true" : "false",
-      s_control_state.vehicle_moving ? "true" : "false",
-      s_control_state.vehicle_moving_command ? "true" : "false",
-      s_control_state.vehicle_moving_actual ? "true" : "false",
-      s_control_state.soft_stop_active ? "true" : "false",
-      s_control_state.emergency_stop_active ? "true" : "false",
-      s_control_state.hardware_estop_active ? "true" : "false",
-      control_outputs_allowed() ? "true" : "false",
-      s_control_state.outputs_locked_by_fault ? "true" : "false",
+      s_control_state.remote_takeover_enabled ? 1U : 0U,
+      s_control_state.local_control_active ? 1U : 0U,
+      s_control_state.vehicle_moving ? 1U : 0U,
+      s_control_state.vehicle_moving_command ? 1U : 0U,
+      s_control_state.vehicle_moving_actual ? 1U : 0U,
+      s_control_state.soft_stop_active ? 1U : 0U,
+      s_control_state.emergency_stop_active ? 1U : 0U,
+      s_control_state.hardware_estop_active ? 1U : 0U,
+      control_outputs_allowed() ? 1U : 0U,
+      s_control_state.outputs_locked_by_fault ? 1U : 0U,
       chassis_fault_code_name(s_fault_state.code),
       chassis_fault_domain_name(s_fault_state.domain),
-      fault_message_json,
-      s_fault_state.drive_can_fault ? "true" : "false",
-      s_fault_state.steer_can_fault ? "true" : "false",
-      s_fault_state.handwheel_can_fault ? "true" : "false",
-      s_fault_state.can_recovery_active ? "true" : "false",
-      (unsigned long)drive_bus_state.bus_off_count,
-      (unsigned long)steer_bus_state.bus_off_count,
-      (unsigned int)drive_bus_state.last_error_code,
-      (unsigned int)steer_bus_state.last_error_code,
-      ewm22_link_remote_source_name(remote_state->remote_source),
-      ewm22_link_remote_gear_name(remote_state->gear),
-      (unsigned long)remote_state->last_seq,
-      (int)remote_state->throttle,
-      (int)remote_state->steer,
-      (int)remote_state->aux_x,
-      (int)remote_state->aux_y,
-      (unsigned int)remote_state->buttons,
-      (unsigned long)remote_age_ms,
-      remote_state->ble_connected ? "true" : "false",
-      remote_state->wifi_sta_connected ? "true" : "false",
-      remote_state->tcp_client_started ? "true" : "false",
-      remote_state->tcp_connected ? "true" : "false",
-      ewm22_last_text_json,
-      (unsigned long)text_age_ms,
-      s_drive_can_ready ? "true" : "false",
-      s_steer_can_ready ? "true" : "false",
+      s_fault_state.drive_can_fault ? 1U : 0U,
+      s_fault_state.steer_can_fault ? 1U : 0U,
+      s_fault_state.handwheel_can_fault ? 1U : 0U,
+      s_fault_state.can_recovery_active ? 1U : 0U,
+      (unsigned int)config->linear_steering_enabled,
+      linear_steering_detected() ? 1U : 0U,
+      (unsigned int)io_state->throttle_raw,
+      (unsigned int)io_state->brake_raw,
+      s_drive_can_ready ? 1U : 0U,
+      s_steer_can_ready ? 1U : 0U,
       (unsigned int)config->steer_can_node_id,
       (unsigned int)config->handwheel_can_node_id,
-      config->linear_steering_enabled ? "true" : "false",
-      linear_steering_detected() ? "true" : "false",
-      config->left_drive_inverted ? "true" : "false",
-      config->right_drive_inverted ? "true" : "false",
-        (long)steering_feedback_raw,
-        steering_feedback_valid ? "true" : "false",
-        (unsigned long)steering_feedback_age_ms);
+      (unsigned int)(config->left_drive_inverted ? 1U : 0U),
+      (unsigned int)(config->right_drive_inverted ? 1U : 0U),
+      remote_fresh ? 1U : 0U,
+      (unsigned long)remote_age_ms,
+      remote_state->ble_connected ? 1U : 0U);
+
+  (void)reply_write(s_status_reply_buffer);
 }
 
 static bool parse_pedal_name(const char *text, bool *is_left)
@@ -2181,8 +2189,10 @@ static void handle_drive_test(const char *line)
   const vehicle_config_t *config = vehicle_config_get();
   int32_t right_rpm = 0;
   int32_t left_rpm = 0;
+  int32_t duration_ms = (int32_t)DEBUG_TEST_DEFAULT_DURATION_MS;
   bool have_right = json_get_int32(line, "\"right_rpm\"", &right_rpm);
   bool have_left = json_get_int32(line, "\"left_rpm\"", &left_rpm);
+  (void)json_get_int32(line, "\"duration_ms\"", &duration_ms);
 
   if (!have_right && !have_left)
   {
@@ -2209,17 +2219,20 @@ static void handle_drive_test(const char *line)
   }
 
   control_set_enabled(false);
+  duration_ms = clamp_int32(duration_ms, 50, (int32_t)DEBUG_TEST_MAX_DURATION_MS);
 
   if (mssd_drive_controller_set_wheel_rpm(&s_drive_controller,
                                           drive_direction_apply_right_output_rpm(config, right_rpm),
                                           drive_direction_apply_left_output_rpm(config, left_rpm)))
   {
+    s_drive_test_start_tick_ms = HAL_GetTick();
+    s_drive_test_duration_ms = ((right_rpm == 0) && (left_rpm == 0)) ? 0U : (uint32_t)duration_ms;
     s_control_state.right_target_rpm = right_rpm;
     s_control_state.left_target_rpm = left_rpm;
     s_control_state.drive_base_rpm = float_to_int32(((float)right_rpm + (float)left_rpm) * 0.5f);
     (void)reply_printf(
-        "{\"cmd\":\"drive_test\",\"ok\":true,\"right_rpm\":%ld,\"left_rpm\":%ld}\r\n",
-        (long)right_rpm, (long)left_rpm);
+        "{\"cmd\":\"drive_test\",\"ok\":true,\"right_rpm\":%ld,\"left_rpm\":%ld,\"duration_ms\":%ld}\r\n",
+        (long)right_rpm, (long)left_rpm, (long)duration_ms);
   }
   else
   {
@@ -2230,6 +2243,7 @@ static void handle_drive_test(const char *line)
 static void handle_steer_test(const char *line)
 {
   int32_t speed_rpm = 0;
+  int32_t duration_ms = (int32_t)DEBUG_TEST_DEFAULT_DURATION_MS;
 
   if (!json_get_int32(line, "\"speed_rpm\"", &speed_rpm))
   {
@@ -2243,14 +2257,18 @@ static void handle_steer_test(const char *line)
     return;
   }
 
+  (void)json_get_int32(line, "\"duration_ms\"", &duration_ms);
   control_set_enabled(false);
+  duration_ms = clamp_int32(duration_ms, 50, (int32_t)DEBUG_TEST_MAX_DURATION_MS);
 
   if (mssc_steering_controller_set_speed_rpm(&s_steer_controller, (int16_t)speed_rpm))
   {
+    s_steer_test_start_tick_ms = HAL_GetTick();
+    s_steer_test_duration_ms = (speed_rpm == 0) ? 0U : (uint32_t)duration_ms;
     s_control_state.steer_target_rpm = (int16_t)speed_rpm;
     (void)reply_printf(
-        "{\"cmd\":\"steer_test\",\"ok\":true,\"speed_rpm\":%ld}\r\n",
-        (long)speed_rpm);
+        "{\"cmd\":\"steer_test\",\"ok\":true,\"speed_rpm\":%ld,\"duration_ms\":%ld}\r\n",
+        (long)speed_rpm, (long)duration_ms);
   }
   else
   {
@@ -2271,6 +2289,8 @@ static void handle_stop_all(void)
   s_calibration_runtime.handwheel_jog_rpm = 0;
   s_control_state.remote_soft_stop_latched = false;
   s_control_state.remote_estop_latched = false;
+  s_drive_test_duration_ms = 0U;
+  s_steer_test_duration_ms = 0U;
 
   if (s_drive_can_ready)
   {
@@ -2315,6 +2335,7 @@ static void handle_set_remote_mode(const char *line)
   if (!s_control_state.remote_takeover_enabled)
   {
     s_control_state.remote_active = false;
+    control_drive_safety_stop(HAL_GetTick(), DRIVE_COMMAND_NORMAL_STOP);
   }
 
   reply_status();
@@ -2326,6 +2347,7 @@ static void handle_set_remote_stop_state(const char *line)
   bool have_estop = false;
   bool soft_stop = false;
   bool estop = false;
+  uint32_t now = HAL_GetTick();
 
   have_soft_stop = json_get_bool(line, "\"soft_stop\"", &soft_stop);
   have_estop = json_get_bool(line, "\"estop\"", &estop);
@@ -2348,6 +2370,13 @@ static void handle_set_remote_stop_state(const char *line)
     if (estop)
     {
       s_control_state.remote_soft_stop_latched = false;
+      s_control_state.emergency_stop_active = true;
+      s_control_state.soft_stop_active = false;
+      control_drive_safety_stop(now, DRIVE_COMMAND_ESTOP);
+    }
+    else
+    {
+      s_control_state.emergency_stop_active = false;
     }
   }
 
@@ -2357,10 +2386,18 @@ static void handle_set_remote_stop_state(const char *line)
     if (soft_stop)
     {
       s_control_state.remote_estop_latched = false;
+      s_control_state.emergency_stop_active = false;
+      s_control_state.soft_stop_active = true;
+      control_drive_safety_stop(now, DRIVE_COMMAND_NORMAL_STOP);
+    }
+    else
+    {
+      s_control_state.soft_stop_active = false;
     }
   }
 
   s_control_state.last_control_tick_ms = 0U;
+  s_control_state.vehicle_moving = preferred_vehicle_motion_state() || calibration_override_active();
 
   reply_status();
 }
@@ -2395,7 +2432,7 @@ static void handle_steering_jog(const char *line)
     return;
   }
 
-  if (chassis_service_actions_locked())
+  if ((rpm != 0) && chassis_service_actions_locked())
   {
     (void)reply_write("{\"cmd\":\"steering_jog\",\"ok\":false,\"error\":\"vehicle_moving\"}\r\n");
     return;
@@ -2409,19 +2446,25 @@ static void handle_steering_jog(const char *line)
     return;
   }
 
-  if (!is_handwheel)
+  if (rpm == 0)
+  {
+    s_calibration_runtime.steering_override_active = false;
+    s_calibration_runtime.handwheel_override_active = false;
+    s_calibration_runtime.steering_jog_rpm = 0;
+    s_calibration_runtime.handwheel_jog_rpm = 0;
+    control_stop_outputs();
+    control_set_enabled(true);
+    (void)mssc_steering_controller_stop(&s_steer_controller);
+    (void)mssc_steering_controller_stop(&s_handwheel_controller);
+  }
+  else if (!is_handwheel)
   {
     control_set_enabled(false);
     control_stop_outputs();
-    s_calibration_runtime.steering_override_active = (rpm != 0);
+    s_calibration_runtime.steering_override_active = true;
     s_calibration_runtime.handwheel_override_active = false;
     s_calibration_runtime.steering_jog_rpm = (int16_t)clamp_int32(rpm, -200, 200);
     s_calibration_runtime.handwheel_jog_rpm = 0;
-
-    if (!s_calibration_runtime.steering_override_active)
-    {
-      (void)mssc_steering_controller_stop(&s_steer_controller);
-    }
 
     (void)mssc_steering_controller_stop(&s_handwheel_controller);
   }
@@ -2429,15 +2472,10 @@ static void handle_steering_jog(const char *line)
   {
     control_set_enabled(false);
     control_stop_outputs();
-    s_calibration_runtime.handwheel_override_active = (rpm != 0);
+    s_calibration_runtime.handwheel_override_active = true;
     s_calibration_runtime.steering_override_active = false;
     s_calibration_runtime.handwheel_jog_rpm = (int16_t)clamp_int32(rpm, -200, 200);
     s_calibration_runtime.steering_jog_rpm = 0;
-
-    if (!s_calibration_runtime.handwheel_override_active)
-    {
-      (void)mssc_steering_controller_stop(&s_handwheel_controller);
-    }
 
     (void)mssc_steering_controller_stop(&s_steer_controller);
   }
@@ -2743,6 +2781,7 @@ void chassis_app_init(ADC_HandleTypeDef *hadc,
   s_control_state.last_control_tick_ms = 0U;
   s_control_state.last_motion_tick_ms = 0U;
   s_control_state.last_actual_motion_tick_ms = 0U;
+  s_control_state.last_drive_safety_stop_tick_ms = 0U;
   s_control_state.right_actual_rpm = 0;
   s_control_state.left_actual_rpm = 0;
   s_control_state.right_actual_rpm_valid = false;
@@ -2766,7 +2805,7 @@ void chassis_app_init(ADC_HandleTypeDef *hadc,
 
 void chassis_app_process(void)
 {
-  char line[256];
+  char line[768];
 
   board_io_process();
   can_transport_process();
@@ -2784,6 +2823,7 @@ void chassis_app_process(void)
     process_line_with_reply_target(line, true);
   }
 
+  debug_test_watchdog_process();
   control_process();
   calibration_process();
   can_transport_process();

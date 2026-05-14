@@ -4,14 +4,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define EWM22_LINE_BUFFER_LEN 192U
+#define EWM22_LINE_BUFFER_LEN 768U
+#define EWM22_APP_COMMAND_QUEUE_DEPTH 8U
 
 static UART_HandleTypeDef *s_huart = NULL;
 static uint8_t s_rx_byte = 0U;
 static char s_line_buffer[EWM22_LINE_BUFFER_LEN];
 static uint16_t s_line_length = 0U;
-static char s_pending_app_command_line[EWM22_LINE_BUFFER_LEN];
-static bool s_pending_app_command_ready = false;
+static char s_pending_app_command_lines[EWM22_APP_COMMAND_QUEUE_DEPTH][EWM22_LINE_BUFFER_LEN];
+static volatile uint8_t s_pending_app_command_read_index = 0U;
+static volatile uint8_t s_pending_app_command_write_index = 0U;
+static volatile uint8_t s_pending_app_command_count = 0U;
 static ewm22_link_state_t s_state;
 
 static bool ewm22_link_start_rx(void)
@@ -375,6 +378,7 @@ static bool ewm22_link_store_app_command_line(const char *line)
 {
   char cmd[32];
   size_t copy_len;
+  char *slot;
 
   if ((line == NULL) || (line[0] != '{'))
   {
@@ -393,15 +397,26 @@ static bool ewm22_link_store_app_command_line(const char *line)
     return false;
   }
 
-  copy_len = strlen(line);
-  if (copy_len >= sizeof(s_pending_app_command_line))
+  if (s_pending_app_command_count >= EWM22_APP_COMMAND_QUEUE_DEPTH)
   {
-    copy_len = sizeof(s_pending_app_command_line) - 1U;
+    s_state.overflow_error_count++;
+    return true;
   }
 
-  memcpy(s_pending_app_command_line, line, copy_len);
-  s_pending_app_command_line[copy_len] = '\0';
-  s_pending_app_command_ready = true;
+  copy_len = strlen(line);
+  slot = s_pending_app_command_lines[s_pending_app_command_write_index];
+
+  if (copy_len >= EWM22_LINE_BUFFER_LEN)
+  {
+    copy_len = EWM22_LINE_BUFFER_LEN - 1U;
+  }
+
+  memcpy(slot, line, copy_len);
+  slot[copy_len] = '\0';
+
+  s_pending_app_command_write_index =
+      (uint8_t)((s_pending_app_command_write_index + 1U) % EWM22_APP_COMMAND_QUEUE_DEPTH);
+  s_pending_app_command_count++;
   return true;
 }
 
@@ -561,6 +576,24 @@ static bool ewm22_link_parse_status_line(const char *line)
     s_state.gear = EWM22_REMOTE_GEAR_UNKNOWN;
     recognized = true;
   }
+  /* ATK-BLE04 formats its connect/disconnect URCs as
+   *   "STA:connect,<handle>,<mac>\r\n"
+   *   "STA:disconnect,<handle>\r\n"
+   * Accept both so the firmware stays module-agnostic. */
+  else if ((strstr(line, "STA:connect") != NULL) ||
+           (strstr(line, "STA: connect") != NULL))
+  {
+    s_state.ble_connected = true;
+    recognized = true;
+  }
+  else if ((strstr(line, "STA:disconnect") != NULL) ||
+           (strstr(line, "STA: disconnect") != NULL))
+  {
+    s_state.ble_connected = false;
+    s_state.remote_valid = false;
+    s_state.gear = EWM22_REMOTE_GEAR_UNKNOWN;
+    recognized = true;
+  }
   else if (strstr(line, "WIFI START CONNECT:") != NULL)
   {
     s_state.wifi_sta_connected = false;
@@ -650,6 +683,12 @@ static void ewm22_link_process_byte(uint8_t byte)
     return;
   }
 
+  /* Any printable byte (or newline) from EWM22 means the UART link is alive.
+   * This is independent of whether we later recognize a full protocol line,
+   * which makes the host-alive check robust against unknown EWM22 URCs and
+   * MTU-driven fragmentation. */
+  s_state.last_any_rx_tick_ms = HAL_GetTick();
+
   if (byte == '\n')
   {
     if (s_line_length == 0U)
@@ -681,8 +720,10 @@ static void ewm22_link_process_byte(uint8_t byte)
 void ewm22_link_init(UART_HandleTypeDef *huart)
 {
   memset(&s_state, 0, sizeof(s_state));
-  memset(s_pending_app_command_line, 0, sizeof(s_pending_app_command_line));
-  s_pending_app_command_ready = false;
+  memset(s_pending_app_command_lines, 0, sizeof(s_pending_app_command_lines));
+  s_pending_app_command_read_index = 0U;
+  s_pending_app_command_write_index = 0U;
+  s_pending_app_command_count = 0U;
   s_huart = huart;
   s_state.initialized = (huart != NULL);
   s_state.remote_source = EWM22_REMOTE_SOURCE_NONE;
@@ -698,6 +739,7 @@ void ewm22_link_init(UART_HandleTypeDef *huart)
 bool ewm22_link_send_text(const char *text)
 {
   size_t len;
+  uint32_t timeout_ms;
 
   if ((s_huart == NULL) || (text == NULL))
   {
@@ -710,28 +752,62 @@ bool ewm22_link_send_text(const char *text)
     return false;
   }
 
-  return (HAL_UART_Transmit(s_huart, (uint8_t *)(uintptr_t)text, (uint16_t)len, 50U) == HAL_OK);
+  timeout_ms = 20U + (uint32_t)((len * 12U) / 115U);
+  if (timeout_ms < 50U)
+  {
+    timeout_ms = 50U;
+  }
+  else if (timeout_ms > 250U)
+  {
+    timeout_ms = 250U;
+  }
+
+  return (HAL_UART_Transmit(s_huart, (uint8_t *)(uintptr_t)text, (uint16_t)len, timeout_ms) == HAL_OK);
 }
 
 bool ewm22_link_pop_app_command_line(char *line, size_t max_len)
 {
   size_t copy_len;
+  uint32_t primask;
+  char *slot;
 
-  if ((line == NULL) || (max_len == 0U) || !s_pending_app_command_ready)
+  if ((line == NULL) || (max_len == 0U))
   {
     return false;
   }
 
-  copy_len = strlen(s_pending_app_command_line);
+  primask = __get_PRIMASK();
+  __disable_irq();
+
+  if (s_pending_app_command_count == 0U)
+  {
+    if (primask == 0U)
+    {
+      __enable_irq();
+    }
+    return false;
+  }
+
+  slot = s_pending_app_command_lines[s_pending_app_command_read_index];
+  copy_len = strlen(slot);
   if (copy_len >= max_len)
   {
     copy_len = max_len - 1U;
   }
 
-  memcpy(line, s_pending_app_command_line, copy_len);
+  memcpy(line, slot, copy_len);
   line[copy_len] = '\0';
-  s_pending_app_command_line[0] = '\0';
-  s_pending_app_command_ready = false;
+  slot[0] = '\0';
+
+  s_pending_app_command_read_index =
+      (uint8_t)((s_pending_app_command_read_index + 1U) % EWM22_APP_COMMAND_QUEUE_DEPTH);
+  s_pending_app_command_count--;
+
+  if (primask == 0U)
+  {
+    __enable_irq();
+  }
+
   return true;
 }
 

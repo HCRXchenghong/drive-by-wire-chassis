@@ -70,6 +70,7 @@ bool mssd_drive_controller_apply_stop_mode_priority(const mssd_drive_controller_
 bool mssd_drive_controller_stop(const mssd_drive_controller_t *controller);
 bool mssd_drive_controller_stop_priority(const mssd_drive_controller_t *controller,
                                          can_transport_priority_t priority);
+void mssd_drive_controller_service(mssd_drive_controller_t *controller, bool enable_feedback_query);
 void mssd_drive_controller_feedback_process(mssd_drive_controller_t *controller);
 bool mssd_drive_controller_get_feedback(const mssd_drive_controller_t *controller, mssd_drive_feedback_t *feedback);
 bool mssd_drive_controller_feedback_fault_active(const mssd_drive_controller_t *controller);

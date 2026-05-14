@@ -129,18 +129,39 @@ static void slot_mark_fault(can_transport_slot_t *slot, bool request_recovery)
   }
 }
 
-static void slot_reset_queue(can_transport_slot_t *slot)
+static void slot_prune_queue_below_priority(can_transport_slot_t *slot, can_transport_priority_t min_priority)
 {
+  uint8_t read_index;
+  uint8_t write_index = 0U;
+
   if (slot == NULL)
   {
     return;
   }
 
-  memset(slot->request_queue, 0, sizeof(slot->request_queue));
-  slot->request_queue_count = 0U;
-  memset(&slot->active_request, 0, sizeof(slot->active_request));
-  slot->state.read_pending = false;
-  slot->state.queue_depth = 0U;
+  for (read_index = 0U; read_index < slot->request_queue_count; ++read_index)
+  {
+    if (slot->request_queue[read_index].priority < min_priority)
+    {
+      continue;
+    }
+
+    if (write_index != read_index)
+    {
+      slot->request_queue[write_index] = slot->request_queue[read_index];
+    }
+    ++write_index;
+  }
+
+  if (write_index < CAN_TRANSPORT_REQUEST_QUEUE_DEPTH)
+  {
+    memset(&slot->request_queue[write_index],
+           0,
+           (CAN_TRANSPORT_REQUEST_QUEUE_DEPTH - write_index) * sizeof(slot->request_queue[0]));
+  }
+
+  slot->request_queue_count = write_index;
+  slot->state.queue_depth = write_index;
 }
 
 static void slot_push_result(can_transport_slot_t *slot, const can_transport_read_result_t *result)
@@ -172,7 +193,15 @@ static bool slot_enqueue_request(can_transport_slot_t *slot, const can_transport
 
   if (slot->request_queue_count >= CAN_TRANSPORT_REQUEST_QUEUE_DEPTH)
   {
-    return false;
+    if (request->priority != CAN_TRANSPORT_PRIORITY_CRITICAL)
+    {
+      return false;
+    }
+
+    memset(&slot->request_queue[CAN_TRANSPORT_REQUEST_QUEUE_DEPTH - 1U],
+           0,
+           sizeof(slot->request_queue[0]));
+    slot->request_queue_count = CAN_TRANSPORT_REQUEST_QUEUE_DEPTH - 1U;
   }
 
   insert_index = slot->request_queue_count;
@@ -189,18 +218,18 @@ static bool slot_enqueue_request(can_transport_slot_t *slot, const can_transport
   return true;
 }
 
-static void slot_pop_front_request(can_transport_slot_t *slot)
+static void slot_pop_request_at(can_transport_slot_t *slot, uint8_t index)
 {
-  if ((slot == NULL) || (slot->request_queue_count == 0U))
+  if ((slot == NULL) || (slot->request_queue_count == 0U) || (index >= slot->request_queue_count))
   {
     return;
   }
 
-  if (slot->request_queue_count > 1U)
+  if (index < (uint8_t)(slot->request_queue_count - 1U))
   {
-    memmove(&slot->request_queue[0],
-            &slot->request_queue[1],
-            (slot->request_queue_count - 1U) * sizeof(slot->request_queue[0]));
+    memmove(&slot->request_queue[index],
+            &slot->request_queue[index + 1U],
+            (slot->request_queue_count - index - 1U) * sizeof(slot->request_queue[0]));
   }
 
   slot->request_queue_count--;
@@ -330,10 +359,8 @@ static void slot_handle_timeout(can_transport_slot_t *slot, uint32_t now)
   slot_push_result(slot, &result);
 
   slot->state.timeout_count++;
-  slot_mark_fault(slot, true);
   memset(&slot->active_request, 0, sizeof(slot->active_request));
   slot->state.read_pending = false;
-  slot_reset_queue(slot);
 }
 
 static bool slot_send_request(can_transport_slot_t *slot, const can_transport_request_t *request)
@@ -377,6 +404,34 @@ static bool slot_send_request(can_transport_slot_t *slot, const can_transport_re
   return true;
 }
 
+static bool slot_send_next_queued_request(can_transport_slot_t *slot, bool allow_read)
+{
+  uint8_t index;
+
+  if ((slot == NULL) || (slot->request_queue_count == 0U))
+  {
+    return false;
+  }
+
+  for (index = 0U; index < slot->request_queue_count; ++index)
+  {
+    if (!allow_read && (slot->request_queue[index].kind == CAN_TRANSPORT_REQUEST_KIND_READ))
+    {
+      continue;
+    }
+
+    if (!slot_send_request(slot, &slot->request_queue[index]))
+    {
+      return false;
+    }
+
+    slot_pop_request_at(slot, index);
+    return true;
+  }
+
+  return false;
+}
+
 static bool slot_perform_recovery(can_transport_slot_t *slot, uint32_t now)
 {
   if (slot == NULL)
@@ -390,7 +445,9 @@ static bool slot_perform_recovery(can_transport_slot_t *slot, uint32_t now)
   }
 
   slot->last_recovery_attempt_tick_ms = now;
-  slot_reset_queue(slot);
+  memset(&slot->active_request, 0, sizeof(slot->active_request));
+  slot->state.read_pending = false;
+  slot_prune_queue_below_priority(slot, CAN_TRANSPORT_PRIORITY_HIGH);
   (void)HAL_CAN_Stop(slot->hcan);
 
   if (HAL_CAN_Start(slot->hcan) != HAL_OK)
@@ -447,10 +504,7 @@ static void can_transport_process_slot(can_transport_slot_t *slot)
     return;
   }
 
-  if (slot_send_request(slot, &slot->request_queue[0]))
-  {
-    slot_pop_front_request(slot);
-  }
+  (void)slot_send_next_queued_request(slot, true);
 }
 
 bool can_transport_start(CAN_HandleTypeDef *hcan, uint32_t filter_bank, uint32_t slave_start_filter_bank)
@@ -533,7 +587,7 @@ bool can_transport_queue_write_std(CAN_HandleTypeDef *hcan,
     return false;
   }
 
-  if (slot->recovery_requested)
+  if (slot->recovery_requested && (priority < CAN_TRANSPORT_PRIORITY_HIGH))
   {
     return false;
   }

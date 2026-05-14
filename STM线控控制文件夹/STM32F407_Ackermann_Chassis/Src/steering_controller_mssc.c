@@ -2,8 +2,10 @@
 
 #define MSSC_REG_POSITION_HIGH 0x0013U
 #define MSSC_REG_POSITION_LOW 0x0014U
-#define MSSC_FEEDBACK_QUERY_PERIOD_MS 5U
-#define MSSC_FEEDBACK_TIMEOUT_MS 40U
+#define MSSC_FEEDBACK_QUERY_PERIOD_MS 120U
+#define MSSC_FEEDBACK_TIMEOUT_MS 200U
+#define MSSC_WRITE_ACK_TIMEOUT_MS 200U
+#define MSSC_WRITE_COOKIE_FLAG 0x80000000UL
 
 static void mssc_build_write16(uint8_t *frame, uint16_t reg_addr, int16_t value)
 {
@@ -44,6 +46,28 @@ static uint32_t mssc_feedback_cookie(const mssc_steering_controller_t *controlle
   return (((uint32_t)controller->node_id & 0x7FFU) << 16) | (uint32_t)reg_addr;
 }
 
+static uint32_t mssc_write_cookie(const mssc_steering_controller_t *controller, uint16_t reg_addr)
+{
+  return MSSC_WRITE_COOKIE_FLAG | mssc_feedback_cookie(controller, reg_addr);
+}
+
+static bool mssc_bus_has_pending_transaction(const mssc_steering_controller_t *controller)
+{
+  can_transport_bus_state_t bus_state;
+
+  if ((controller == NULL) || (controller->hcan == NULL))
+  {
+    return true;
+  }
+
+  if (!can_transport_get_bus_state(controller->hcan, &bus_state))
+  {
+    return true;
+  }
+
+  return bus_state.read_pending || (bus_state.queue_depth > 0U);
+}
+
 static void mssc_invalidate_feedback_cache(mssc_steering_controller_t *controller)
 {
   if (controller == NULL)
@@ -63,6 +87,7 @@ static bool mssc_queue_write16(const mssc_steering_controller_t *controller,
                                can_transport_priority_t priority)
 {
   uint8_t frame[8];
+  uint32_t sequence = 0U;
 
   if ((controller == NULL) || (controller->hcan == NULL))
   {
@@ -70,7 +95,16 @@ static bool mssc_queue_write16(const mssc_steering_controller_t *controller,
   }
 
   mssc_build_write16(frame, reg_addr, value);
-  return can_transport_queue_write_std(controller->hcan, controller->node_id, frame, sizeof(frame), priority);
+  return can_transport_queue_read_std(controller->hcan,
+                                      controller->node_id,
+                                      frame,
+                                      sizeof(frame),
+                                      MSSC_WRITE_ACK_TIMEOUT_MS,
+                                      mssc_write_cookie(controller, reg_addr),
+                                      0x60U,
+                                      (uint16_t)(0x4000U + reg_addr),
+                                      priority,
+                                      &sequence);
 }
 
 static bool mssc_queue_read16(const mssc_steering_controller_t *controller, uint16_t reg_addr)
@@ -182,6 +216,62 @@ static void mssc_drain_feedback_results(mssc_steering_controller_t *controller)
   } while (consumed);
 }
 
+static void mssc_consume_write_result(mssc_steering_controller_t *controller,
+                                      const can_transport_read_result_t *result)
+{
+  if ((controller == NULL) || (result == NULL))
+  {
+    return;
+  }
+
+  if (result->type == CAN_TRANSPORT_READ_RESULT_TIMEOUT)
+  {
+    controller->can_control_prepared = false;
+    controller->feedback_fault_active = true;
+    controller->feedback_timeout_count++;
+    controller->last_feedback_timeout_tick_ms = result->tick_ms;
+    return;
+  }
+
+  controller->last_feedback_ok_tick_ms = result->tick_ms;
+  controller->feedback_fault_active = false;
+}
+
+static void mssc_drain_write_results(mssc_steering_controller_t *controller)
+{
+  static const uint16_t regs[] = {
+      0x0030U,
+      0x0031U,
+      0x006BU,
+      0x006CU};
+  bool consumed = false;
+  size_t index;
+
+  if ((controller == NULL) || (controller->hcan == NULL))
+  {
+    return;
+  }
+
+  do
+  {
+    consumed = false;
+
+    for (index = 0U; index < (sizeof(regs) / sizeof(regs[0])); ++index)
+    {
+      can_transport_read_result_t result;
+      uint32_t cookie = mssc_write_cookie(controller, regs[index]);
+
+      if (!can_transport_take_read_result(controller->hcan, cookie, &result))
+      {
+        continue;
+      }
+
+      mssc_consume_write_result(controller, &result);
+      consumed = true;
+    }
+  } while (consumed);
+}
+
 static void mssc_sync_recovery_state(mssc_steering_controller_t *controller)
 {
   can_transport_bus_state_t bus_state;
@@ -210,6 +300,28 @@ static void mssc_sync_recovery_state(mssc_steering_controller_t *controller)
   {
     controller->feedback_request_pending = false;
   }
+}
+
+static bool mssc_queue_prepare_sequence(const mssc_steering_controller_t *controller)
+{
+  mssc_steering_controller_t *mutable_controller = (mssc_steering_controller_t *)controller;
+
+  if (!mssc_queue_write16(controller, 0x006BU, 0, CAN_TRANSPORT_PRIORITY_HIGH))
+  {
+    return false;
+  }
+
+  if (!mssc_queue_write16(controller, 0x006CU, (int16_t)controller->control_mode, CAN_TRANSPORT_PRIORITY_HIGH))
+  {
+    return false;
+  }
+
+  if (mutable_controller != NULL)
+  {
+    mutable_controller->can_control_prepared = true;
+  }
+
+  return true;
 }
 
 void mssc_steering_controller_bind(mssc_steering_controller_t *controller,
@@ -243,29 +355,17 @@ void mssc_steering_controller_bind(mssc_steering_controller_t *controller,
 
 bool mssc_steering_controller_prepare_for_can_control(const mssc_steering_controller_t *controller)
 {
-  mssc_steering_controller_t *mutable_controller = (mssc_steering_controller_t *)controller;
-
   if ((controller == NULL) || (controller->hcan == NULL))
   {
     return false;
   }
 
-  if (!mssc_queue_write16(controller, 0x006BU, 0, CAN_TRANSPORT_PRIORITY_HIGH))
+  if (mssc_bus_has_pending_transaction(controller))
   {
     return false;
   }
 
-  if (!mssc_queue_write16(controller, 0x006CU, (int16_t)controller->control_mode, CAN_TRANSPORT_PRIORITY_HIGH))
-  {
-    return false;
-  }
-
-  if (mutable_controller != NULL)
-  {
-    mutable_controller->can_control_prepared = true;
-  }
-
-  return true;
+  return mssc_queue_prepare_sequence(controller);
 }
 
 bool mssc_steering_controller_set_speed_rpm_priority(const mssc_steering_controller_t *controller,
@@ -277,9 +377,14 @@ bool mssc_steering_controller_set_speed_rpm_priority(const mssc_steering_control
     return false;
   }
 
+  if (mssc_bus_has_pending_transaction(controller))
+  {
+    return false;
+  }
+
   if (!((mssc_steering_controller_t *)controller)->can_control_prepared)
   {
-    if (!mssc_steering_controller_prepare_for_can_control(controller))
+    if (!mssc_queue_prepare_sequence(controller))
     {
       return false;
     }
@@ -306,6 +411,11 @@ bool mssc_steering_controller_stop_priority(const mssc_steering_controller_t *co
     return false;
   }
 
+  if (mssc_bus_has_pending_transaction(controller))
+  {
+    return false;
+  }
+
   if (!mssc_queue_write16(controller, 0x0031U, 0, priority))
   {
     return false;
@@ -321,6 +431,11 @@ bool mssc_steering_controller_stop(const mssc_steering_controller_t *controller)
 
 void mssc_steering_controller_feedback_process(mssc_steering_controller_t *controller)
 {
+  mssc_steering_controller_service(controller, true);
+}
+
+void mssc_steering_controller_service(mssc_steering_controller_t *controller, bool enable_feedback_query)
+{
   uint32_t now;
   uint16_t next_reg;
 
@@ -330,9 +445,20 @@ void mssc_steering_controller_feedback_process(mssc_steering_controller_t *contr
   }
 
   mssc_sync_recovery_state(controller);
+  mssc_drain_write_results(controller);
   mssc_drain_feedback_results(controller);
 
+  if (!enable_feedback_query)
+  {
+    return;
+  }
+
   if (controller->feedback_request_pending)
+  {
+    return;
+  }
+
+  if (mssc_bus_has_pending_transaction(controller))
   {
     return;
   }

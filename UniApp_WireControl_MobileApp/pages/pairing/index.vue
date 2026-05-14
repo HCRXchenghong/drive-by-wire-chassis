@@ -5,7 +5,7 @@
     <view class="page-body page-narrow">
       <view class="center-title-block">
         <text class="center-title">选择蓝牙设备</text>
-        <text class="center-subtitle">新建档案时先选中 EWM22 BLE 模块</text>
+        <text class="center-subtitle">新建档案时先选中 infinite-robot-001 BLE 模块</text>
       </view>
 
       <view class="panel-card">
@@ -26,7 +26,7 @@
           <view v-if="discoveredDevices.length === 0" class="empty-panel">
             <AppSvgIcon v-if="bridgeState.discovering" name="loader" :size="24" color="#409EFF" :spin="true" />
             <text class="empty-title">{{ bridgeState.discovering ? '正在搜索附近设备...' : '还没有发现可用设备' }}</text>
-            <text class="empty-tip">打开 EWM22 BLE 广播后，再点右上角重新扫描。</text>
+            <text class="empty-tip">打开 infinite-robot-001 广播后，再点右上角重新扫描。</text>
           </view>
 
           <view

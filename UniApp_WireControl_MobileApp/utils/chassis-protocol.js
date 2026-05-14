@@ -58,6 +58,40 @@ function safeNumber(value, fallback) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function firstPresent(source, keys) {
+  const safe = source || {};
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index];
+    if (Object.prototype.hasOwnProperty.call(safe, key) &&
+        safe[key] !== undefined &&
+        safe[key] !== null &&
+        safe[key] !== '') {
+      return safe[key];
+    }
+  }
+
+  return undefined;
+}
+
+function pickString(source, keys, fallback = '') {
+  const value = firstPresent(source, keys);
+  return String(value === undefined ? fallback : value);
+}
+
+function pickNumber(source, keys, fallback) {
+  const value = firstPresent(source, keys);
+  return safeNumber(value === undefined ? fallback : value, fallback);
+}
+
+function pickRoundedNumber(source, keys, fallback) {
+  return Math.round(pickNumber(source, keys, fallback));
+}
+
+function pickBool(source, keys, fallback) {
+  const value = firstPresent(source, keys);
+  return safeBool(value === undefined ? fallback : value, fallback);
+}
+
 function safeBool(value, fallback) {
   if (typeof value === 'boolean') {
     return value;
@@ -79,6 +113,125 @@ function safeBool(value, fallback) {
   }
 
   return !!fallback;
+}
+
+function utf8BytesToText(bytes) {
+  const source = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || 0);
+  let text = '';
+  let index = 0;
+
+  while (index < source.length) {
+    const first = source[index];
+
+    if (first < 0x80) {
+      text += String.fromCharCode(first);
+      index += 1;
+      continue;
+    }
+
+    if ((first & 0xE0) === 0xC0 && (index + 1) < source.length) {
+      const second = source[index + 1];
+      if ((second & 0xC0) === 0x80) {
+        text += String.fromCharCode(((first & 0x1F) << 6) | (second & 0x3F));
+        index += 2;
+        continue;
+      }
+    }
+
+    if ((first & 0xF0) === 0xE0 && (index + 2) < source.length) {
+      const second = source[index + 1];
+      const third = source[index + 2];
+      if (((second & 0xC0) === 0x80) && ((third & 0xC0) === 0x80)) {
+        text += String.fromCharCode(
+          ((first & 0x0F) << 12) |
+          ((second & 0x3F) << 6) |
+          (third & 0x3F)
+        );
+        index += 3;
+        continue;
+      }
+    }
+
+    if ((first & 0xF8) === 0xF0 && (index + 3) < source.length) {
+      const second = source[index + 1];
+      const third = source[index + 2];
+      const fourth = source[index + 3];
+      if (((second & 0xC0) === 0x80) &&
+          ((third & 0xC0) === 0x80) &&
+          ((fourth & 0xC0) === 0x80)) {
+        const codePoint = ((first & 0x07) << 18) |
+                          ((second & 0x3F) << 12) |
+                          ((third & 0x3F) << 6) |
+                          (fourth & 0x3F);
+        const safeCodePoint = codePoint - 0x10000;
+        text += String.fromCharCode(
+          0xD800 + ((safeCodePoint >> 10) & 0x3FF),
+          0xDC00 + (safeCodePoint & 0x3FF)
+        );
+        index += 4;
+        continue;
+      }
+    }
+
+    text += '\uFFFD';
+    index += 1;
+  }
+
+  return text;
+}
+
+function maybeRepairUtf8Mojibake(text) {
+  const source = String(text || '');
+
+  if (!source) {
+    return '';
+  }
+
+  if (/[\u4E00-\u9FFF]/.test(source)) {
+    return source;
+  }
+
+  if (!/[ÃÂÆÉæèéêîïðñåç]/.test(source)) {
+    return source;
+  }
+
+  const bytes = new Uint8Array(source.length);
+  for (let index = 0; index < source.length; index += 1) {
+    bytes[index] = source.charCodeAt(index) & 0xFF;
+  }
+
+  const repaired = utf8BytesToText(bytes).trim();
+  return /[\u4E00-\u9FFF]/.test(repaired) ? repaired : source;
+}
+
+function faultCodeToZhMessage(faultCode) {
+  switch (String(faultCode || 'none')) {
+    case 'drive_reply_timeout':
+      return '驱动 CAN 回复超时，控制不中断，请检查驱动回读';
+    case 'steer_reply_timeout':
+      return '机械转向 CAN 回复超时，已禁止行驶并等待自动恢复';
+    case 'handwheel_reply_timeout':
+      return '线性方向盘回复超时，已禁用线性方向盘相关功能';
+    case 'drive_bus_error':
+      return '驱动 CAN 总线异常，已锁停并等待自动恢复';
+    case 'steer_bus_error':
+      return '转向 CAN 总线异常，已禁止行驶并等待自动恢复';
+    case 'steering_feedback_lost':
+      return '机械转向真实反馈丢失，已禁止行驶';
+    default:
+      return '';
+  }
+}
+
+function normalizeFaultMessageZh(source) {
+  const faultCode = pickString(source, ['fault_code', 'fc'], 'none');
+  const rawMessage = maybeRepairUtf8Mojibake(pickString(source, ['fault_message_zh', 'fm'], '')).trim();
+
+  if (!rawMessage || rawMessage === faultCode) {
+    return faultCodeToZhMessage(faultCode);
+  }
+
+  return rawMessage;
 }
 
 export function createControlFrame(options) {
@@ -222,18 +375,18 @@ export function normalizeConfigPayload(payload) {
   const source = payload || {};
 
   return {
-    chassisType: String(source.chassis_type || source.ct || DEFAULT_APP_CONFIG.chassisType).toLowerCase() === 'diff' ? 'diff' : 'ackermann',
-    driveAxle: String(source.drive_axle || source.da || DEFAULT_APP_CONFIG.driveAxle).toLowerCase() === 'fwd' ? 'fwd' : 'rwd',
-    frontTrackMm: Math.round(safeNumber(source.front_track_mm || source.ft, DEFAULT_APP_CONFIG.frontTrackMm)),
-    wheelbaseMm: Math.round(safeNumber(source.wheelbase_mm || source.wb, DEFAULT_APP_CONFIG.wheelbaseMm)),
-    rearTrackMm: Math.round(safeNumber(source.rear_track_mm || source.rt, DEFAULT_APP_CONFIG.rearTrackMm)),
-    driveMaxRpm: Math.round(safeNumber(source.drive_max_rpm || source.dmr, DEFAULT_APP_CONFIG.driveMaxRpm)),
-    steerCanNodeId: Math.round(safeNumber(source.steer_can_node_id || source.sid, DEFAULT_APP_CONFIG.steerCanNodeId)),
-    handwheelCanNodeId: Math.round(safeNumber(source.handwheel_can_node_id || source.hid, DEFAULT_APP_CONFIG.handwheelCanNodeId)),
-    leftDriveInverted: safeBool(source.left_drive_inverted || source.ldi, DEFAULT_APP_CONFIG.leftDriveInverted),
-    rightDriveInverted: safeBool(source.right_drive_inverted || source.rdi, DEFAULT_APP_CONFIG.rightDriveInverted),
-    hasLinearSteering: safeBool(source.linear_steering_enabled || source.ls, DEFAULT_APP_CONFIG.hasLinearSteering),
-    pedalConfig: String(source.pedal_config || DEFAULT_APP_CONFIG.pedalConfig).toLowerCase() === 'estop_throttle'
+    chassisType: pickString(source, ['chassis_type', 'ct'], DEFAULT_APP_CONFIG.chassisType).toLowerCase() === 'diff' ? 'diff' : 'ackermann',
+    driveAxle: pickString(source, ['drive_axle', 'da'], DEFAULT_APP_CONFIG.driveAxle).toLowerCase() === 'fwd' ? 'fwd' : 'rwd',
+    frontTrackMm: pickRoundedNumber(source, ['front_track_mm', 'ft'], DEFAULT_APP_CONFIG.frontTrackMm),
+    wheelbaseMm: pickRoundedNumber(source, ['wheelbase_mm', 'wb'], DEFAULT_APP_CONFIG.wheelbaseMm),
+    rearTrackMm: pickRoundedNumber(source, ['rear_track_mm', 'rt'], DEFAULT_APP_CONFIG.rearTrackMm),
+    driveMaxRpm: pickRoundedNumber(source, ['drive_max_rpm', 'dmr'], DEFAULT_APP_CONFIG.driveMaxRpm),
+    steerCanNodeId: pickRoundedNumber(source, ['steer_can_node_id', 'sid'], DEFAULT_APP_CONFIG.steerCanNodeId),
+    handwheelCanNodeId: pickRoundedNumber(source, ['handwheel_can_node_id', 'hid'], DEFAULT_APP_CONFIG.handwheelCanNodeId),
+    leftDriveInverted: pickBool(source, ['left_drive_inverted', 'ldi'], DEFAULT_APP_CONFIG.leftDriveInverted),
+    rightDriveInverted: pickBool(source, ['right_drive_inverted', 'rdi'], DEFAULT_APP_CONFIG.rightDriveInverted),
+    hasLinearSteering: pickBool(source, ['linear_steering_enabled', 'ls'], DEFAULT_APP_CONFIG.hasLinearSteering),
+    pedalConfig: pickString(source, ['pedal_config'], DEFAULT_APP_CONFIG.pedalConfig).toLowerCase() === 'estop_throttle'
       ? 'estop_throttle'
       : 'brake_throttle'
   };
@@ -264,68 +417,73 @@ export function normalizeCalibrationPayload(payload) {
 
 export function normalizeStatusPayload(payload) {
   const source = payload || {};
+  const faultCode = pickString(source, ['fault_code', 'fc'], 'none');
+  const faultDomain = pickString(source, ['fault_domain', 'fd'], 'none');
+  const driveMaxRpm = firstPresent(source, ['drive_max_rpm', 'dmr']);
 
   return {
     online: true,
-    chassisType: String(source.chassis_type || source.ct || DEFAULT_APP_CONFIG.chassisType).toLowerCase(),
-    driveAxle: String(source.drive_axle || source.da || DEFAULT_APP_CONFIG.driveAxle).toLowerCase(),
-    driveMode: String(source.drive_mode || source.dm || '').toUpperCase(),
-    driveMaxRpm: Math.round(safeNumber(source.drive_max_rpm || source.dmr, DEFAULT_APP_CONFIG.driveMaxRpm)),
-    localGear: String(source.gear || source.g || 'D').toUpperCase(),
-    remoteGear: String(source.remote_gear || source.rg || 'N').toUpperCase(),
-    controlOwner: String(source.control_owner || source.co || 'LOCAL').toUpperCase(),
-    remoteMode: String(source.remote_mode || source.rm || 'MONITOR').toUpperCase(),
-    remoteTakeoverEnabled: safeBool(source.remote_takeover_enabled || source.rto, false),
-    localControlActive: safeBool(source.local_control_active || source.lca, false),
-    vehicleMoving: safeBool(source.vehicle_moving || source.mov, false),
-    vehicleMovingCommand: safeBool(source.vehicle_moving_command || source.mvc, false),
-    vehicleMovingActual: safeBool(source.vehicle_moving_actual || source.mva, false),
-    softStopActive: safeBool(source.soft_stop_active || source.ssa, false),
-    emergencyStopActive: safeBool(source.emergency_stop_active || source.esa, false),
-    hardwareEstopActive: safeBool(source.hardware_estop_active || source.hea, false),
-    outputsEnabled: safeBool(source.outputs_enabled || source.oe, false),
-    outputsLockedByFault: safeBool(source.outputs_locked_by_fault || source.olf, false),
-    remoteActive: safeBool(source.remote_active || source.ra, false),
-    remoteValid: safeBool(source.remote_valid || source.rv, false),
-    driveFeedbackValid: safeBool(source.drive_feedback_valid || source.dfv, false),
-    faultCode: String(source.fault_code || source.fc || 'none'),
-    faultDomain: String(source.fault_domain || source.fd || 'none'),
-    faultMessageZh: String(source.fault_message_zh || source.fm || ''),
-    driveCanFault: safeBool(source.drive_can_fault || source.dcf, false),
-    steerCanFault: safeBool(source.steer_can_fault || source.scf, false),
-    handwheelCanFault: safeBool(source.handwheel_can_fault || source.hcf, false),
-    canRecoveryActive: safeBool(source.can_recovery_active || source.cra, false),
-    can1BusOffCount: Math.round(safeNumber(source.can1_bus_off_count || source.c1bo, 0)),
-    can2BusOffCount: Math.round(safeNumber(source.can2_bus_off_count || source.c2bo, 0)),
-    can1LastErrorCode: Math.round(safeNumber(source.can1_last_error_code || source.c1lec, 0)),
-    can2LastErrorCode: Math.round(safeNumber(source.can2_last_error_code || source.c2lec, 0)),
-    linearSteeringEnabled: safeBool(source.linear_steering_enabled || source.ls, false),
-    linearSteeringDetected: safeBool(source.linear_steering_detected || source.lsd, false),
-    throttleRaw: Math.round(safeNumber(source.throttle_raw || source.thr, 0)),
-    brakeRaw: Math.round(safeNumber(source.brake_raw || source.brk, 0)),
-    leftTargetRpm: Math.round(safeNumber(source.left_target_rpm || source.lr, 0)),
-    rightTargetRpm: Math.round(safeNumber(source.right_target_rpm || source.rr, 0)),
-    leftActualRpm: Math.round(safeNumber(source.left_actual_rpm || source.lar, 0)),
-    rightActualRpm: Math.round(safeNumber(source.right_actual_rpm || source.rar, 0)),
-    leftActualRpmValid: safeBool(source.left_actual_rpm_valid || source.lav, false),
-    rightActualRpmValid: safeBool(source.right_actual_rpm_valid || source.rav, false),
-    leftActualRpmAgeMs: Math.round(safeNumber(source.left_actual_rpm_age_ms || source.laa, 0)),
-    rightActualRpmAgeMs: Math.round(safeNumber(source.right_actual_rpm_age_ms || source.raa, 0)),
-    steerTargetRpm: Math.round(safeNumber(source.steer_target_rpm || source.sr, 0)),
-    steerTargetRaw: Math.round(safeNumber(source.steer_target_raw || source.str, 0)),
-    steerTargetAngleDeg: safeNumber(source.steer_target_angle_deg || source.sta, 0),
-    steerActualAngleDeg: safeNumber(source.steer_actual_angle_deg || source.saa, 0),
-    steeringFeedback: Math.round(safeNumber(source.steering_feedback || source.sf, 0)),
-    steeringFeedbackValid: safeBool(source.steering_feedback_valid || source.sfv, false),
-    steeringFeedbackAgeMs: Math.round(safeNumber(source.steering_feedback_age_ms || source.sfa, 0)),
-    driveCanReady: safeBool(source.drive_can_ready || source.dc, false),
-    steerCanReady: safeBool(source.steer_can_ready || source.sc, false),
-    steerCanNodeId: Math.round(safeNumber(source.steer_can_node_id || source.sid, DEFAULT_APP_CONFIG.steerCanNodeId)),
-    handwheelCanNodeId: Math.round(safeNumber(source.handwheel_can_node_id || source.hid, DEFAULT_APP_CONFIG.handwheelCanNodeId)),
-    leftDriveInverted: safeBool(source.left_drive_inverted || source.ldi, DEFAULT_APP_CONFIG.leftDriveInverted),
-    rightDriveInverted: safeBool(source.right_drive_inverted || source.rdi, DEFAULT_APP_CONFIG.rightDriveInverted),
-    bleConnected: safeBool(source.ble_connected, false),
-    remoteSource: String(source.remote_source || source.src || 'NONE').toUpperCase()
+    chassisType: pickString(source, ['chassis_type', 'ct'], DEFAULT_APP_CONFIG.chassisType).toLowerCase(),
+    driveAxle: pickString(source, ['drive_axle', 'da'], DEFAULT_APP_CONFIG.driveAxle).toLowerCase(),
+    driveMode: pickString(source, ['drive_mode', 'dm'], '').toUpperCase(),
+    driveMaxRpm: driveMaxRpm === undefined
+      ? undefined
+      : Math.round(safeNumber(driveMaxRpm, DEFAULT_APP_CONFIG.driveMaxRpm)),
+    localGear: pickString(source, ['gear', 'g'], 'D').toUpperCase(),
+    remoteGear: pickString(source, ['remote_gear', 'rg'], 'N').toUpperCase(),
+    controlOwner: pickString(source, ['control_owner', 'co'], 'LOCAL').toUpperCase(),
+    remoteMode: pickString(source, ['remote_mode', 'rm'], 'MONITOR').toUpperCase(),
+    remoteTakeoverEnabled: pickBool(source, ['remote_takeover_enabled', 'rto'], false),
+    localControlActive: pickBool(source, ['local_control_active', 'lca'], false),
+    vehicleMoving: pickBool(source, ['vehicle_moving', 'mov'], false),
+    vehicleMovingCommand: pickBool(source, ['vehicle_moving_command', 'mvc'], false),
+    vehicleMovingActual: pickBool(source, ['vehicle_moving_actual', 'mva'], false),
+    softStopActive: pickBool(source, ['soft_stop_active', 'ssa'], false),
+    emergencyStopActive: pickBool(source, ['emergency_stop_active', 'esa'], false),
+    hardwareEstopActive: pickBool(source, ['hardware_estop_active', 'hea'], false),
+    outputsEnabled: pickBool(source, ['outputs_enabled', 'oe'], false),
+    outputsLockedByFault: pickBool(source, ['outputs_locked_by_fault', 'olf'], false),
+    remoteActive: pickBool(source, ['remote_active', 'ra'], false),
+    remoteValid: pickBool(source, ['remote_valid', 'rv'], false),
+    driveFeedbackValid: pickBool(source, ['drive_feedback_valid', 'dfv'], false),
+    faultCode,
+    faultDomain,
+    faultMessageZh: normalizeFaultMessageZh(source),
+    driveCanFault: pickBool(source, ['drive_can_fault', 'dcf'], false),
+    steerCanFault: pickBool(source, ['steer_can_fault', 'scf'], false),
+    handwheelCanFault: pickBool(source, ['handwheel_can_fault', 'hcf'], false),
+    canRecoveryActive: pickBool(source, ['can_recovery_active', 'cra'], false),
+    can1BusOffCount: pickRoundedNumber(source, ['can1_bus_off_count', 'c1bo'], 0),
+    can2BusOffCount: pickRoundedNumber(source, ['can2_bus_off_count', 'c2bo'], 0),
+    can1LastErrorCode: pickRoundedNumber(source, ['can1_last_error_code', 'c1lec'], 0),
+    can2LastErrorCode: pickRoundedNumber(source, ['can2_last_error_code', 'c2lec'], 0),
+    linearSteeringEnabled: pickBool(source, ['linear_steering_enabled', 'ls'], false),
+    linearSteeringDetected: pickBool(source, ['linear_steering_detected', 'lsd'], false),
+    throttleRaw: pickRoundedNumber(source, ['throttle_raw', 'thr'], 0),
+    brakeRaw: pickRoundedNumber(source, ['brake_raw', 'brk'], 0),
+    leftTargetRpm: pickRoundedNumber(source, ['left_target_rpm', 'lr'], 0),
+    rightTargetRpm: pickRoundedNumber(source, ['right_target_rpm', 'rr'], 0),
+    leftActualRpm: pickRoundedNumber(source, ['left_actual_rpm', 'lar'], 0),
+    rightActualRpm: pickRoundedNumber(source, ['right_actual_rpm', 'rar'], 0),
+    leftActualRpmValid: pickBool(source, ['left_actual_rpm_valid', 'lav'], false),
+    rightActualRpmValid: pickBool(source, ['right_actual_rpm_valid', 'rav'], false),
+    leftActualRpmAgeMs: pickRoundedNumber(source, ['left_actual_rpm_age_ms', 'laa'], 0),
+    rightActualRpmAgeMs: pickRoundedNumber(source, ['right_actual_rpm_age_ms', 'raa'], 0),
+    steerTargetRpm: pickRoundedNumber(source, ['steer_target_rpm', 'sr'], 0),
+    steerTargetRaw: pickRoundedNumber(source, ['steer_target_raw', 'str'], 0),
+    steerTargetAngleDeg: pickNumber(source, ['steer_target_angle_deg', 'sta'], 0),
+    steerActualAngleDeg: pickNumber(source, ['steer_actual_angle_deg', 'saa'], 0),
+    steeringFeedback: pickRoundedNumber(source, ['steering_feedback', 'sf'], 0),
+    steeringFeedbackValid: pickBool(source, ['steering_feedback_valid', 'sfv'], false),
+    steeringFeedbackAgeMs: pickRoundedNumber(source, ['steering_feedback_age_ms', 'sfa'], 0),
+    driveCanReady: pickBool(source, ['drive_can_ready', 'dc'], false),
+    steerCanReady: pickBool(source, ['steer_can_ready', 'sc'], false),
+    steerCanNodeId: pickRoundedNumber(source, ['steer_can_node_id', 'sid'], DEFAULT_APP_CONFIG.steerCanNodeId),
+    handwheelCanNodeId: pickRoundedNumber(source, ['handwheel_can_node_id', 'hid'], DEFAULT_APP_CONFIG.handwheelCanNodeId),
+    leftDriveInverted: pickBool(source, ['left_drive_inverted', 'ldi'], DEFAULT_APP_CONFIG.leftDriveInverted),
+    rightDriveInverted: pickBool(source, ['right_drive_inverted', 'rdi'], DEFAULT_APP_CONFIG.rightDriveInverted),
+    bleConnected: pickBool(source, ['ble_connected'], false),
+    remoteSource: pickString(source, ['remote_source', 'src'], 'NONE').toUpperCase()
   };
 }
 
@@ -344,8 +502,8 @@ export function normalizeCapabilitiesPayload(payload) {
     remoteMonitorSupported: safeBool(source.remote_monitor_supported, true),
     softStopSupported: safeBool(source.soft_stop_supported, true),
     hardwareEstopSupported: safeBool(source.hardware_estop_supported, true),
-    driveController: String(source.drive_controller || ''),
-    steeringController: String(source.steering_controller || ''),
+    driveController: pickString(source, ['drive_controller'], ''),
+    steeringController: pickString(source, ['steering_controller'], ''),
     driveCanReady: safeBool(source.drive_can_ready, false),
     steerCanReady: safeBool(source.steer_can_ready, false)
   };
@@ -361,6 +519,6 @@ export function normalizeLinearSteeringPayload(payload) {
     steerCanReady: safeBool(source.steer_can_ready, false),
     steerCanRxCount: Math.round(safeNumber(source.steer_can_rx_count, 0)),
     steerCanLastRxMs: Math.round(safeNumber(source.steer_can_last_rx_ms, 0)),
-    reason: String(source.reason || '')
+    reason: pickString(source, ['reason'], '')
   };
 }

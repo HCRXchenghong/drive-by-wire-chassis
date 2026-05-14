@@ -1,1 +1,1 @@
-Src/sysmem.o: ../Src/sysmem.c
+Src\sysmem.o: ..\Src\sysmem.c

@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define USB_CDC_SHELL_LINE_MAX 256U
+#define USB_CDC_SHELL_LINE_MAX 768U
 #define USB_CDC_SHELL_TX_MAX   768U
 
 static char s_rx_accumulator[USB_CDC_SHELL_LINE_MAX];

@@ -8,7 +8,7 @@
           <AppSvgIcon name="bluetooth" :size="34" color="#ffffff" />
         </view>
         <text class="hero-title">线控底盘终端</text>
-        <text class="hero-subtitle">连接 EWM22 BLE 模块，进入 F407 底盘闭环调试</text>
+        <text class="hero-subtitle">连接 infinite-robot-001 BLE 模块，进入 F407 底盘闭环调试</text>
       </view>
 
       <view v-if="bootError" class="error-panel">

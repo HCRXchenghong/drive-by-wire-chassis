@@ -33,7 +33,7 @@
               <view class="info-list">
                 <view class="info-row">
                   <text class="info-label">通信模块</text>
-                  <text class="info-value">{{ connectedProfile ? connectedProfile.radioLink : 'EWM22 BLE' }}</text>
+                  <text class="info-value">{{ connectedProfile ? connectedProfile.radioLink : 'ATK-BLE04' }}</text>
                 </view>
                 <view class="info-row">
                   <text class="info-label">蓝牙名称</text>
@@ -41,7 +41,7 @@
                 </view>
                 <view class="info-row">
                   <text class="info-label">控制链路</text>
-                  <text class="info-value">手机 BLE Central / EWM22 BLE 透传 / STM32F407</text>
+                  <text class="info-value">手机 BLE Central / ATK-BLE04 透传 / STM32F407</text>
                 </view>
                 <view class="info-row">
                   <text class="info-label">驱动控制器</text>
@@ -149,9 +149,9 @@
                   <text class="status-chip-title">转向 CAN</text>
                   <text class="status-chip-value">{{ telemetryStatus && telemetryStatus.steerCanReady ? '正常' : '未就绪' }}</text>
                 </view>
-                <view class="status-chip" :class="telemetryStatus && telemetryStatus.steeringFeedbackValid ? 'chip-on' : 'chip-off'">
+                <view class="status-chip" :class="mechanicalSteeringFeedbackOnline ? 'chip-on' : 'chip-off'">
                   <text class="status-chip-title">机械转向反馈</text>
-                  <text class="status-chip-value">{{ telemetryStatus && telemetryStatus.steeringFeedbackValid ? '实时回传' : '暂无回传' }}</text>
+                  <text class="status-chip-value">{{ mechanicalSteeringFeedbackOnline ? '实时回传' : '暂无回传' }}</text>
                 </view>
                 <view class="status-chip" :class="controlOwner === 'REMOTE' ? 'chip-on' : 'chip-off'">
                   <text class="status-chip-title">当前控制权</text>
@@ -256,7 +256,7 @@
                 </view>
                 <view class="info-row">
                   <text class="info-label">当前最大驱动输出</text>
-                  <text class="info-value">{{ telemetryStatus ? telemetryStatus.driveMaxRpm : appConfig.driveMaxRpm }} RPM</text>
+                  <text class="info-value">{{ statusDriveMaxRpm }} RPM</text>
                 </view>
               </view>
             </view>
@@ -336,11 +336,11 @@
                 </view>
                 <view class="info-row">
                   <text class="info-label">转向反馈</text>
-                  <text class="info-value">{{ telemetryStatus && telemetryStatus.steeringFeedbackValid ? telemetryStatus.steeringFeedback : '--' }}</text>
+                  <text class="info-value">{{ mechanicalSteeringFeedbackOnline ? mechanicalSteeringFeedbackValue : '--' }}</text>
                 </view>
                 <view class="info-row">
                   <text class="info-label">反馈时延</text>
-                  <text class="info-value">{{ telemetryStatus && telemetryStatus.steeringFeedbackValid ? `${telemetryStatus.steeringFeedbackAgeMs} ms` : '--' }}</text>
+                  <text class="info-value">{{ mechanicalSteeringFeedbackOnline ? mechanicalSteeringFeedbackAgeText : '--' }}</text>
                 </view>
               </view>
             </view>
@@ -352,9 +352,9 @@
             </view>
 
             <view class="panel-body form-stack">
-              <view class="status-inline" :class="vehicleMoving ? 'status-inline-warn' : 'status-inline-normal'">
+              <view class="status-inline" :class="serviceActionsLocked ? 'status-inline-warn' : 'status-inline-normal'">
                 <text class="status-inline-text">
-                  {{ vehicleMoving ? '车辆正在运动，方向矫正已锁定。请先停车后再调转。' : '这里修改的是 F407 内部真实方向参数，会同时影响驱动轮目标下发和实际速度回读符号。' }}
+                  {{ serviceActionsLocked ? '车辆正在运动，方向矫正已锁定。请先停车后再调转。' : '这里修改的是 F407 内部真实方向参数，会同时影响驱动轮目标下发和实际速度回读符号。' }}
                 </text>
               </view>
 
@@ -516,9 +516,9 @@
             </view>
 
             <view class="panel-body form-stack">
-              <view class="status-inline" :class="vehicleMoving ? 'status-inline-warn' : 'status-inline-normal'">
+              <view class="status-inline" :class="serviceActionsLocked ? 'status-inline-warn' : 'status-inline-normal'">
                 <text class="status-inline-text">
-                  {{ vehicleMoving ? '车辆正在运动，参数保存与线性矫正已锁定。' : '车辆静止，可保存配置并进入线性矫正。' }}
+                  {{ serviceActionsLocked ? '车辆正在运动，参数保存与线性矫正已锁定。' : '车辆静止，可保存配置并进入线性矫正。' }}
                 </text>
               </view>
 
@@ -743,6 +743,11 @@ export default {
       remoteCommandLock: false,
       savingConfig: false,
       lastFaultPopupKey: '',
+      uiNow: Date.now(),
+      lastNeutralKeepaliveAt: 0,
+      lastSteeringFeedbackOkAt: 0,
+      cachedSteeringFeedbackValue: null,
+      cachedSteeringFeedbackAgeMs: 0,
       lastSafetySnapshot: {
         softStopActive: false,
         emergencyStopActive: false,
@@ -787,7 +792,12 @@ export default {
     },
     statusOnline() {
       const lastAt = getLatestStatusTimestamp(this.bridgeState);
-      return !!lastAt && (Date.now() - lastAt) < 1600;
+      // The STM32 broadcasts chassis_status every 500 ms, and the App
+      // polls get_status once per second.  A 3-second window tolerates
+      // a couple of missed broadcasts (e.g. brief BLE RF interference
+      // or MTU-negotiation fallback slow-down) without flashing the UI
+      // between "在线" and "离线".
+      return !!lastAt && (this.uiNow - lastAt) < 3000;
     },
     bleLinkOnline() {
       return !!this.bridgeState.clientConnected;
@@ -813,6 +823,55 @@ export default {
     driveFeedbackValid() {
       return !!(this.telemetryStatus && this.telemetryStatus.driveFeedbackValid);
     },
+    statusDriveMaxRpm() {
+      const statusValue = Number(this.telemetryStatus && this.telemetryStatus.driveMaxRpm);
+      if (Number.isFinite(statusValue) && statusValue > 0) {
+        return Math.round(statusValue);
+      }
+
+      return this.appConfig.driveMaxRpm || 500;
+    },
+    serviceActionsLocked() {
+      if (this.emergencyStopActive || this.softStopActive) {
+        return this.driveFeedbackValid ? this.vehicleMovingActual : false;
+      }
+
+      return this.vehicleMoving;
+    },
+    mechanicalSteeringFeedbackOnline() {
+      if (!this.statusOnline || !this.telemetryStatus) {
+        return false;
+      }
+
+      if (this.telemetryStatus.steeringFeedbackValid) {
+        return true;
+      }
+
+      return !!this.lastSteeringFeedbackOkAt &&
+        (this.uiNow - this.lastSteeringFeedbackOkAt) < 1800;
+    },
+    mechanicalSteeringFeedbackValue() {
+      if (this.telemetryStatus && this.telemetryStatus.steeringFeedbackValid) {
+        return this.telemetryStatus.steeringFeedback;
+      }
+
+      return this.cachedSteeringFeedbackValue !== null ? this.cachedSteeringFeedbackValue : '--';
+    },
+    mechanicalSteeringFeedbackAgeText() {
+      if (!this.mechanicalSteeringFeedbackOnline) {
+        return '--';
+      }
+
+      if (this.telemetryStatus && this.telemetryStatus.steeringFeedbackValid) {
+        return `${this.telemetryStatus.steeringFeedbackAgeMs} ms`;
+      }
+
+      const heldAgeMs = Math.round(
+        Number(this.cachedSteeringFeedbackAgeMs || 0) +
+        (this.lastSteeringFeedbackOkAt ? this.uiNow - this.lastSteeringFeedbackOkAt : 0)
+      );
+      return `${heldAgeMs} ms`;
+    },
     actualMotionText() {
       if (!this.driveFeedbackValid) {
         return '未建立真实速度回读';
@@ -832,6 +891,9 @@ export default {
     outputsLockedByFault() {
       return !!(this.telemetryStatus && this.telemetryStatus.outputsLockedByFault);
     },
+    steeringLockedByFault() {
+      return this.outputsLockedByFault && this.faultCode !== 'drive_reply_timeout';
+    },
     faultCode() {
       return String((this.telemetryStatus && this.telemetryStatus.faultCode) || 'none');
     },
@@ -839,10 +901,10 @@ export default {
       return String((this.telemetryStatus && this.telemetryStatus.faultMessageZh) || '');
     },
     joystickLocked() {
-      return this.softStopActive || this.emergencyStopActive || this.hardwareEstopActive || this.outputsLockedByFault;
+      return this.softStopActive || this.emergencyStopActive || this.hardwareEstopActive || this.steeringLockedByFault;
     },
     controlLockText() {
-      if (this.outputsLockedByFault) {
+      if (this.steeringLockedByFault) {
         return this.faultMessageZh || '通信或反馈故障已锁停';
       }
 
@@ -911,10 +973,20 @@ export default {
     this.connectedProfile = getConnectedProfile();
     this.sessionState = syncSessionFromBridgeState(getBridgeState());
     this.syncDraftConfig();
+    this.startSyncTicker();
+    this.startControlTicker();
     this.requestSnapshot();
     this.$nextTick(() => {
       this.refreshLayoutRects();
     });
+  },
+  onHide() {
+    clearInterval(this.syncTicker);
+    clearInterval(this.controlTicker);
+    this.syncTicker = null;
+    this.controlTicker = null;
+    this.resetJoystick(false);
+    this.sendNeutralFrame();
   },
   onUnload() {
     clearInterval(this.syncTicker);
@@ -938,6 +1010,7 @@ export default {
       this.activeTab = tab;
       if (tab !== 'control') {
         this.resetJoystick(false);
+        this.sendNeutralFrame();
       }
 
       this.$nextTick(() => {
@@ -950,16 +1023,18 @@ export default {
         this.bridgeState = getBridgeState();
         this.connectedProfile = getConnectedProfile();
         this.sessionState = syncSessionFromBridgeState(this.bridgeState);
+        const now = Date.now();
+        this.uiNow = now;
+        this.refreshFeedbackLatches(now);
         this.maybePopupSafetyTransitions();
         this.maybePopupFaultTransition();
 
-        const now = Date.now();
         if (this.bridgeState.clientConnected && (now - this.lastStatusQueryAt) > 1000) {
           this.lastStatusQueryAt = now;
           sendJsonCommand(createGetStatusCommand());
         }
 
-        if (this.bridgeState.clientConnected && (now - this.lastMetaQueryAt) > 2200) {
+        if (!this.savingConfig && this.bridgeState.clientConnected && (now - this.lastMetaQueryAt) > 2200) {
           this.lastMetaQueryAt = now;
           sendJsonCommand(createGetCapabilitiesCommand());
           sendJsonCommand(createGetConfigCommand());
@@ -977,6 +1052,7 @@ export default {
       clearInterval(this.controlTicker);
       this.controlTicker = setInterval(() => {
         if (this.activeTab !== 'control') {
+          this.sendNeutralKeepaliveFrame();
           return;
         }
 
@@ -990,6 +1066,17 @@ export default {
       sendJsonCommand(createGetStatusCommand());
       sendJsonCommand(createGetCalibrationCommand());
       sendJsonCommand(createQueryLinearSteeringCommand());
+    },
+    refreshFeedbackLatches(now = Date.now()) {
+      const latestStatus = getLatestStatusSnapshot(this.bridgeState);
+
+      if (!latestStatus || !latestStatus.steeringFeedbackValid) {
+        return;
+      }
+
+      this.lastSteeringFeedbackOkAt = now;
+      this.cachedSteeringFeedbackValue = latestStatus.steeringFeedback;
+      this.cachedSteeringFeedbackAgeMs = Number(latestStatus.steeringFeedbackAgeMs || 0);
     },
     syncDraftConfig() {
       const config = this.appConfig || getAppConfig();
@@ -1075,6 +1162,10 @@ export default {
       }
 
       this.lastFaultPopupKey = popupKey;
+      if (faultCode === 'drive_reply_timeout') {
+        return;
+      }
+
       uni.showModal({
         title: '车辆安全告警',
         content: this.telemetryStatus.faultMessageZh || '检测到通信或反馈故障，请检查车辆状态。',
@@ -1101,17 +1192,16 @@ export default {
           showCancel: false
         });
       } else if (nextSnapshot.softStopActive && !this.lastSafetySnapshot.softStopActive) {
-        uni.showModal({
+        uni.showToast({
           title: '车辆已缓停',
-          content: '当前已进入缓停状态，系统会优先停止驱动输出。',
-          showCancel: false
+          icon: 'none'
         });
       }
 
       this.lastSafetySnapshot = nextSnapshot;
     },
     ensureVehicleStopped() {
-      if (this.vehicleMoving) {
+      if (this.serviceActionsLocked) {
         this.showVehicleMovingModal();
         return false;
       }
@@ -1301,11 +1391,44 @@ export default {
       }
 
       this.savingConfig = true;
+      this.remoteCommandLock = true;
 
+      const configRequestAt = Date.now();
       sendJsonCommand(createSetConfigCommand(payload), {
         replacePendingQueue: true
       });
-      sendJsonCommand(createGetConfigCommand());
+
+      const configApplied = await this.waitForCondition((bridgeState) => {
+        return !!bridgeState.configResultAt &&
+          bridgeState.configResultAt >= configRequestAt &&
+          bridgeState.configResult &&
+          bridgeState.configResult.cmd === 'config_ack';
+      }, 2500);
+
+      if (!configApplied) {
+        this.savingConfig = false;
+        this.remoteCommandLock = false;
+        uni.showToast({
+          title: '配置下发超时',
+          icon: 'none'
+        });
+        return false;
+      }
+
+      if (this.bridgeState.configResult && this.bridgeState.configResult.ok === false) {
+        this.savingConfig = false;
+        this.remoteCommandLock = false;
+        if (this.bridgeState.configResult.error === 'vehicle_moving') {
+          this.showVehicleMovingModal();
+          return false;
+        }
+
+        uni.showToast({
+          title: '配置下发失败',
+          icon: 'none'
+        });
+        return false;
+      }
 
       const requestAt = Date.now();
       sendJsonCommand(createSaveConfigCommand());
@@ -1318,6 +1441,7 @@ export default {
       }, 2200);
 
       this.savingConfig = false;
+      this.remoteCommandLock = false;
 
       if (!ok) {
         uni.showToast({
@@ -1328,8 +1452,15 @@ export default {
       }
 
       if (this.bridgeState.saveResult && this.bridgeState.saveResult.ok) {
-        updateAppConfig(payload);
+        const verifyAt = Date.now();
+        sendJsonCommand(createGetConfigCommand());
+        await this.waitForCondition((bridgeState) => {
+          return !!bridgeState.configAt && bridgeState.configAt >= verifyAt;
+        }, 1200);
+
+        updateAppConfig(this.bridgeState.configData || payload);
         persistConnectedProfile(this.bridgeState);
+        this.sessionState = syncSessionFromBridgeState(this.bridgeState);
         this.syncDraftConfig();
         this.requestSnapshot();
         uni.showToast({
@@ -1649,6 +1780,19 @@ export default {
       if (result.ok) {
         this.controlSeq += 1;
       }
+    },
+    sendNeutralKeepaliveFrame() {
+      if (this.remoteCommandLock || this.remoteMode !== 'TAKEOVER') {
+        return;
+      }
+
+      const now = Date.now();
+      if ((now - this.lastNeutralKeepaliveAt) < 100) {
+        return;
+      }
+
+      this.lastNeutralKeepaliveAt = now;
+      this.sendNeutralFrame();
     },
     sendNeutralFrame() {
       if (!this.bridgeState.clientConnected || !this.bridgeState.notifyReady) {

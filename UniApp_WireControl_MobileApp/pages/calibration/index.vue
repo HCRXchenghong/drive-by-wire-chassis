@@ -17,9 +17,9 @@
       </view>
 
       <scroll-view scroll-y class="calibration-scroll">
-        <view class="status-inline" :class="vehicleMoving ? 'status-inline-warn' : 'status-inline-normal'">
+        <view class="status-inline" :class="serviceActionsLocked ? 'status-inline-warn' : 'status-inline-normal'">
           <text class="status-inline-text">
-            {{ vehicleMoving ? '车辆正在运动，矫正采样、转向点动、记录矫正点与保存已锁定。' : '车辆静止，可执行踏板采样、转向矫正与保存下发。' }}
+            {{ serviceActionsLocked ? '车辆正在运动，矫正采样、转向点动、记录矫正点与保存已锁定。' : '车辆静止，可执行踏板采样、转向矫正与保存下发。' }}
           </text>
         </view>
 
@@ -380,6 +380,25 @@ export default {
     vehicleMoving() {
       return !!(this.latestStatus && this.latestStatus.vehicleMoving);
     },
+    vehicleMovingActual() {
+      return !!(this.latestStatus && this.latestStatus.vehicleMovingActual);
+    },
+    driveFeedbackValid() {
+      return !!(this.latestStatus && this.latestStatus.driveFeedbackValid);
+    },
+    emergencyStopActive() {
+      return !!(this.latestStatus && this.latestStatus.emergencyStopActive);
+    },
+    softStopActive() {
+      return !!(this.latestStatus && this.latestStatus.softStopActive);
+    },
+    serviceActionsLocked() {
+      if (this.emergencyStopActive || this.softStopActive) {
+        return this.driveFeedbackValid ? this.vehicleMovingActual : false;
+      }
+
+      return this.vehicleMoving;
+    },
     pedalWizardFinished() {
       return this.pedalWizard.stepIndex >= 10;
     },
@@ -414,6 +433,9 @@ export default {
     this.sessionState = syncSessionFromBridgeState(this.bridgeState);
     this.pedalConfig = this.appConfig.pedalConfig || 'brake_throttle';
     this.requestSnapshot();
+  },
+  onHide() {
+    this.stopAllJog();
   },
   onUnload() {
     clearInterval(this.syncTicker);
@@ -453,7 +475,7 @@ export default {
           sendJsonCommand(createGetCalibrationCommand());
         }
 
-        if ((now - this.lastMetaQueryAt) > 2500) {
+        if (!this.savingCalibration && (now - this.lastMetaQueryAt) > 2500) {
           this.lastMetaQueryAt = now;
           sendJsonCommand(createGetCapabilitiesCommand());
           sendJsonCommand(createGetConfigCommand());
@@ -497,7 +519,7 @@ export default {
       });
     },
     ensureVehicleStopped() {
-      if (this.vehicleMoving) {
+      if (this.serviceActionsLocked) {
         this.showVehicleMovingModal();
         return false;
       }
@@ -610,10 +632,9 @@ export default {
       });
     },
     stopAllJog() {
-      sendJsonCommand(createSteeringJogCommand('STEERING', 0));
-      if (this.linearSteeringSupported && this.appConfig.hasLinearSteering) {
-        sendJsonCommand(createSteeringJogCommand('HANDWHEEL', 0));
-      }
+      sendJsonCommand(createSteeringJogCommand('STEERING', 0), {
+        replacePendingQueue: true
+      });
     },
     async capturePoint(axis, point) {
       if (!this.ensureVehicleStopped()) {
@@ -667,9 +688,40 @@ export default {
 
       this.savingCalibration = true;
 
+      const configRequestAt = Date.now();
       sendJsonCommand(createSetConfigCommand(this.buildRuntimeConfig()), {
         replacePendingQueue: true
       });
+
+      const configApplied = await this.waitForCondition((bridgeState) => {
+        return !!bridgeState.configResultAt &&
+          bridgeState.configResultAt >= configRequestAt &&
+          bridgeState.configResult &&
+          bridgeState.configResult.cmd === 'config_ack';
+      }, 2500);
+
+      if (!configApplied) {
+        this.savingCalibration = false;
+        uni.showToast({
+          title: '配置下发超时',
+          icon: 'none'
+        });
+        return;
+      }
+
+      if (this.bridgeState.configResult && this.bridgeState.configResult.ok === false) {
+        this.savingCalibration = false;
+        if (this.bridgeState.configResult.error === 'vehicle_moving') {
+          this.showVehicleMovingModal();
+          return;
+        }
+
+        uni.showToast({
+          title: '配置下发失败',
+          icon: 'none'
+        });
+        return;
+      }
 
       const requestAt = Date.now();
       sendJsonCommand(createSaveCalibrationCommand());
