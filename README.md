@@ -20,20 +20,33 @@
 2. 所有关键状态尽量来自真实回包、真实 IO、真实配置，而不是伪造 mock。
 3. 安全优先，停止类命令必须高于本地和远程的一般驱动命令。
 
-## 1.1 版本发布
+## 1.1 当前 GitHub 发布状态
 
-当前仓库已经开始做正式版本标签发布：
+当前 GitHub 仓库的正式发布版本是：
 
 - `v1.0.0`
-  - 第一版完整可用基线。
-- `v1.0.1`
-  - 加入 `MSSD` 速度回读状态链路、“命令运动状态 / 实际运动状态”双状态、App 侧驱动轮方向即时校正，以及双驱动轮离线反馈联调脚本。
-- `v1.0.2`
-  - 加入 `drive_max_rpm` 全链路配置、状态回传与 Flash 兼容迁移，并新增基于浏览器 `Web Serial` 的 USB-CAN 离线调试页面。
-- `v2.0.1`
-  - 加入 CAN 事务门控、总线故障锁停与自动恢复、机械转向位置闭环、App 中文故障弹窗，以及 HTML / PowerShell 调试工具的串行读事务模型。
 
-在 `Gitee` 上可以直接按标签下载对应版本源码包，每个标签都可以单独归档和回滚。
+这个 `v1.0.0` 不是早期空壳版本，而是当前可以烧录和现场联调的完整基线，已经包含：
+
+- `MSSD` 左右驱动轮目标转速下发与真实速度回读。
+- `drive_max_rpm` 最大驱动输出配置、保存、回读和 App 显示。
+- CAN 事务门控、故障锁停、自动恢复和中文故障状态回传。
+- 机械转向位置反馈闭环与线性方向盘检测。
+- 本地踏板、本地挡位、App 急停 / 缓停、本地硬件急停。
+- 当前现场接线版本的 `PB11` 硬件急停高电平有效逻辑。
+
+根目录保留当前可烧录文件：
+
+- `STM32F407_Ackermann_Chassis_strict_mssc.hex`
+- `STM32F407_Ackermann_Chassis_strict_mssc.bin`
+
+当前 `hex` 文件 SHA256：
+
+```text
+41885C5FD3E7C1A75657BA0B800DF21C4FDB85B3249CF93B62BDEEC74E992024
+```
+
+说明：历史开发过程中曾经出现过 `v1.0.1 / v1.0.2 / v2.0.1` 这些本地或旧远端标签名，但当前 GitHub 发布以 `v1.0.0` 为准。
 
 ---
 
@@ -120,7 +133,7 @@
 
 必须诚实说明的一点：
 
-- 从 `v1.0.1` 开始，固件已经把运动状态拆成“命令状态”和“实际状态”两层：
+- 当前固件已经把运动状态拆成“命令状态”和“实际状态”两层：
   - `vehicle_moving_command`
     - 用于表达最近是否仍有非零驱动目标命令。
   - `vehicle_moving_actual`
@@ -132,7 +145,7 @@
 - 仍需如实说明：
   - 右轮实际速度寄存器 `0x09/0x0A` 来自手册明确说明。
   - 左轮实际速度寄存器已按 2026-04-27 的 USB-CAN 实测结果确认为 `0x14/0x15`。
-  - 2026-04-27 这次在本机通过 `COM9` 的 USB-CAN 稳定重测，已经再次确认“目标转速下发 -> 车轮实际转动”和“右轮 `0x09/0x0A` / 左轮 `0x14/0x15` 实际速度回读”两条链路都可用；若后续系统重新枚举串口号，调试命令里的 `-Port` 需要按实际口位替换。
+  - 后续如果系统重新枚举串口号，调试命令里的 `-Port` 需要按实际口位替换。
 
 ---
 
@@ -173,24 +186,24 @@
 推荐现场命令：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 -Port COM9 -NodeId 1 -RightRpm 500 -LeftRpm -500 -DurationSeconds 2 -SequenceTest -ReadFeedback -Run
+powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 -Port COMx -NodeId 1 -RightRpm 500 -LeftRpm -500 -DurationSeconds 2 -SequenceTest -ReadFeedback -Run
 ```
 
 如果当前最关心的是“正号和负号到底哪个才是物理前进方向”，推荐直接运行方向检查模式：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 -Port COM9 -NodeId 1 -RightRpm 200 -LeftRpm 200 -DurationSeconds 1.2 -DirectionCheck -ReadFeedback -Run
+powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 -Port COMx -NodeId 1 -RightRpm 200 -LeftRpm 200 -DurationSeconds 1.2 -DirectionCheck -ReadFeedback -Run
 ```
 
 如果只是先确保驱动轮彻底停下，可以用：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 -Port COM9 -NodeId 1 -StopOnly -EmergencyStopOnStop -Run
+powershell -ExecutionPolicy Bypass -File .\调试脚本\mssd_dual_wheel_can.ps1 -Port COMx -NodeId 1 -StopOnly -EmergencyStopOnStop -Run
 ```
 
 #### 4.1.2 浏览器 USB-CAN 联调页
 
-从 `v1.0.2` 开始，仓库里另外保留一个浏览器调试页：
+仓库里另外保留一个浏览器调试页：
 
 - `调试脚本/usb_can_rear_drive_steering_test.html`
 
@@ -362,7 +375,7 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 
 ### 5.4 最大驱动输出配置
 
-从 `v1.0.2` 开始，最大驱动输出不再是固件内部写死常量，而是正式配置项：
+当前最大驱动输出不再是固件内部写死常量，而是正式配置项：
 
 - 字段名：
   - `drive_max_rpm`
@@ -391,7 +404,7 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 
 ### 5.5 CAN 事务门控
 
-从 `v2.0.1` 开始，固件里的 `can_transport` 不再是“固定周期盲发 + 被动收包”的模型，而是改成了真实的事务调度器。
+当前固件里的 `can_transport` 不再是“固定周期盲发 + 被动收包”的模型，而是改成了真实的事务调度器。
 
 当前实现约束如下：
 
@@ -413,7 +426,7 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 
 ### 5.6 CAN 故障锁停与自动恢复
 
-从 `v2.0.1` 开始，固件对 CAN 异常不再只是“看有没有回包”，而是正式接入：
+当前固件对 CAN 异常不再只是“看有没有回包”，而是正式接入：
 
 - `ERROR_WARNING`
 - `ERROR_PASSIVE`
@@ -448,7 +461,7 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 
 ### 5.7 机械转向闭环与限位策略
 
-从 `v2.0.1` 开始，机械转向不再只是简单按摇杆开环给一个转速。
+当前机械转向不再只是简单按摇杆开环给一个转速。
 
 当前策略变为：
 
@@ -885,7 +898,7 @@ App 现在已经按这些真实字段显示状态，而不是本地乱猜。
 | ATK-BLE04 UART TX | `PA9` | 输出 | STM32 发到 ATK-BLE04 |
 | ATK-BLE04 UART RX | `PA10` | 输入 | ATK-BLE04 发到 STM32 |
 | 本地前进 / 后退挡位 | `PB10` | 输入 | `0=D, 1=R` |
-| 硬件急停输入 | `PB11` | 输入 | 低电平有效 |
+| 硬件急停输入 | `PB11` | 输入 | 高电平有效 |
 | 机械转向 + 方向盘 CAN RX | `PB12` | 输入 | `CAN2_RX` |
 | 机械转向 + 方向盘 CAN TX | `PB13` | 输出 | `CAN2_TX` |
 | 驱动轮 CAN RX | `PB8` | 输入 | `CAN1_RX` |
@@ -938,30 +951,26 @@ App 现在已经按这些真实字段显示状态，而不是本地乱猜。
 
 当前逻辑：
 
-- 低电平有效
+- 高电平有效
 - 也就是：
-  - `PB11 = 0` 表示硬件急停按下
-  - `PB11 = 1` 表示未触发
+  - `PB11 = 1` 表示硬件急停按下
+  - `PB11 = 0` 表示未触发
 
-用户要求是：
+用户当前接法是：
 
-- 外部使用 `1k` 上拉电阻
-
-因此推荐接法：
-
-1. `PB11` 通过 `1k` 电阻上拉到 `3.3V`
-2. 急停按钮按下时把 `PB11` 直接拉到 `GND`
+1. `3.3V` 通过 `1k` 电阻接到急停按钮一侧
+2. 急停按钮另一侧接 `PB11`
 
 这样形成：
 
-- 平时：高电平，未急停
-- 按下：低电平，立即急停
+- 平时：`PB11` 由内部下拉保持低电平，未急停
+- 按下：`PB11` 被拉到高电平，立即急停
 
 当前代码中对 `PB11` 的配置：
 
 - `.ioc` 标注为 `GPIO_Input`
-- `GPIO_NOPULL`
-- 真正依赖外部 `1k` 上拉
+- `GPIO_PULLDOWN`
+- 按下时依赖外部 `3.3V -> 1k -> 急停按钮 -> PB11` 拉高
 
 相关代码：
 
@@ -1191,10 +1200,10 @@ STM32 回：
 
 因此当前系统做了双层保护：
 
-1. App 前端先判断 `vehicle_moving`
-2. 固件后端再次拒绝执行
+1. App 前端先判断 `serviceActionsLocked`
+2. 固件后端再次用同一策略拒绝执行
 
-其中从 `v1.0.1` 开始：
+当前固件中：
 
 - `vehicle_moving_command`
   - 表示最近仍存在非零驱动目标命令。
@@ -1203,6 +1212,10 @@ STM32 回：
 - `vehicle_moving`
   - 作为兼容字段继续保留，含义是“当前服务锁是否应该生效”。
   - 它会优先参考 `vehicle_moving_actual`，在没有真实速度回读时回退到 `vehicle_moving_command`。
+- `serviceActionsLocked`
+  - App 侧用于保存、矫正、点动、采样等服务动作的最终锁定判断。
+  - 如果当前处于急停或缓停状态，且驱动真实反馈有效，则优先看 `vehicle_moving_actual`。
+  - 这样急停 / 缓停后目标命令已经清零时，不会因为旧命令保持窗口一直误弹“车辆正在运动”。
 
 ### 11.2 固件侧已经锁住的动作
 
@@ -1358,7 +1371,7 @@ App 现在会在以下场景弹窗：
 
 ### 15.1 车辆运动判定
 
-从 `v1.0.1` 开始，运动状态被拆成三层：
+当前运动状态被拆成三层：
 
 1. `vehicle_moving_command`
    - 依据最近一段时间内是否持续有非零目标转速命令。

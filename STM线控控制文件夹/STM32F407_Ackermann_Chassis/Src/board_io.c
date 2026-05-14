@@ -57,7 +57,7 @@ static void board_io_update_gear(void)
 static void board_io_update_hardware_estop(void)
 {
   GPIO_PinState pin_state = HAL_GPIO_ReadPin(HW_ESTOP_In_GPIO_Port, HW_ESTOP_In_Pin);
-  s_board_io.hardware_estop_active = (pin_state == GPIO_PIN_RESET);
+  s_board_io.hardware_estop_active = (pin_state == GPIO_PIN_SET);
 }
 
 static void board_io_update_adc(void)
