@@ -37,6 +37,7 @@ export function syncSessionFromBridgeState(bridgeState) {
     const statusConfigPatch = {};
     [
       ['driveMaxRpm', state.statusData.driveMaxRpm],
+      ['steeringMaxRpm', state.statusData.steeringMaxRpm],
       ['steerCanNodeId', state.statusData.steerCanNodeId],
       ['handwheelCanNodeId', state.statusData.handwheelCanNodeId],
       ['leftDriveInverted', state.statusData.leftDriveInverted],

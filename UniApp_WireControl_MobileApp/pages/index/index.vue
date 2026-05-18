@@ -126,6 +126,7 @@ export default {
         wheelbaseMm: profile.wheelbaseMm || appConfig.wheelbaseMm,
         rearTrackMm: profile.rearTrackMm || appConfig.rearTrackMm,
         driveMaxRpm: profile.driveMaxRpm || appConfig.driveMaxRpm,
+        steeringMaxRpm: profile.steeringMaxRpm || appConfig.steeringMaxRpm,
         chassisType: profile.chassisType || appConfig.chassisType,
         driveAxle: profile.driveAxle || appConfig.driveAxle,
         hasLinearSteering: typeof profile.hasLinearSteering === 'boolean' ? profile.hasLinearSteering : appConfig.hasLinearSteering,

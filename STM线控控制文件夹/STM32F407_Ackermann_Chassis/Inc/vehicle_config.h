@@ -61,17 +61,18 @@ typedef struct
   uint16_t throttle_raw_max;
   uint16_t brake_raw_min;
   uint16_t brake_raw_max;
-  int16_t steering_center;
-  int16_t steering_left_10;
-  int16_t steering_right_10;
-  int16_t steering_left_limit;
-  int16_t steering_right_limit;
-  int16_t handwheel_center;
-  int16_t handwheel_left_10;
-  int16_t handwheel_right_10;
-  int16_t handwheel_left_limit;
-  int16_t handwheel_right_limit;
+  int32_t steering_center;
+  int32_t steering_left_10;
+  int32_t steering_right_10;
+  int32_t steering_left_limit;
+  int32_t steering_right_limit;
+  int32_t handwheel_center;
+  int32_t handwheel_left_10;
+  int32_t handwheel_right_10;
+  int32_t handwheel_left_limit;
+  int32_t handwheel_right_limit;
   uint16_t drive_max_rpm;
+  uint16_t steering_max_rpm;
   uint32_t version;
 } vehicle_config_t;
 

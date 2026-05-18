@@ -10,6 +10,7 @@ export const DEFAULT_APP_CONFIG = {
   wheelbaseMm: 1720,
   rearTrackMm: 1260,
   driveMaxRpm: 500,
+  steeringMaxRpm: 2000,
   steerCanNodeId: 1,
   handwheelCanNodeId: 2,
   leftDriveInverted: false,
@@ -24,10 +25,10 @@ export const DEFAULT_CALIBRATION = {
   brakeRawMin: 240,
   brakeRawMax: 3840,
   steeringCenter: 0,
-  steeringLeft10: -100,
-  steeringRight10: 100,
-  steeringLeftLimit: -600,
-  steeringRightLimit: 600,
+  steeringLeft10: 100,
+  steeringRight10: -100,
+  steeringLeftLimit: 600,
+  steeringRightLimit: -600,
   handwheelCenter: 0,
   handwheelLeft10: -100,
   handwheelRight10: 100,
@@ -287,8 +288,9 @@ export function createSetConfigCommand(config) {
     wheelbase_mm: Math.max(100, Math.round(safeNumber(safe.wheelbaseMm, DEFAULT_APP_CONFIG.wheelbaseMm))),
     rear_track_mm: Math.max(100, Math.round(safeNumber(safe.rearTrackMm, DEFAULT_APP_CONFIG.rearTrackMm))),
     drive_max_rpm: clamp(Math.round(safeNumber(safe.driveMaxRpm, DEFAULT_APP_CONFIG.driveMaxRpm)), 50, 5000),
-    steer_can_node_id: clamp(Math.round(safeNumber(safe.steerCanNodeId, DEFAULT_APP_CONFIG.steerCanNodeId)), 1, 0x7FF),
-    handwheel_can_node_id: clamp(Math.round(safeNumber(safe.handwheelCanNodeId, DEFAULT_APP_CONFIG.handwheelCanNodeId)), 1, 0x7FF),
+    steering_max_rpm: clamp(Math.round(safeNumber(safe.steeringMaxRpm, DEFAULT_APP_CONFIG.steeringMaxRpm)), 200, 5000),
+    steer_can_node_id: clamp(Math.round(safeNumber(safe.steerCanNodeId, DEFAULT_APP_CONFIG.steerCanNodeId)), 1, 0x7F),
+    handwheel_can_node_id: clamp(Math.round(safeNumber(safe.handwheelCanNodeId, DEFAULT_APP_CONFIG.handwheelCanNodeId)), 1, 0x7F),
     left_drive_inverted: !!safe.leftDriveInverted,
     right_drive_inverted: !!safe.rightDriveInverted,
     linear_steering_enabled: !!safe.hasLinearSteering,
@@ -381,6 +383,7 @@ export function normalizeConfigPayload(payload) {
     wheelbaseMm: pickRoundedNumber(source, ['wheelbase_mm', 'wb'], DEFAULT_APP_CONFIG.wheelbaseMm),
     rearTrackMm: pickRoundedNumber(source, ['rear_track_mm', 'rt'], DEFAULT_APP_CONFIG.rearTrackMm),
     driveMaxRpm: pickRoundedNumber(source, ['drive_max_rpm', 'dmr'], DEFAULT_APP_CONFIG.driveMaxRpm),
+    steeringMaxRpm: pickRoundedNumber(source, ['steering_max_rpm', 'smr'], DEFAULT_APP_CONFIG.steeringMaxRpm),
     steerCanNodeId: pickRoundedNumber(source, ['steer_can_node_id', 'sid'], DEFAULT_APP_CONFIG.steerCanNodeId),
     handwheelCanNodeId: pickRoundedNumber(source, ['handwheel_can_node_id', 'hid'], DEFAULT_APP_CONFIG.handwheelCanNodeId),
     leftDriveInverted: pickBool(source, ['left_drive_inverted', 'ldi'], DEFAULT_APP_CONFIG.leftDriveInverted),
@@ -420,6 +423,7 @@ export function normalizeStatusPayload(payload) {
   const faultCode = pickString(source, ['fault_code', 'fc'], 'none');
   const faultDomain = pickString(source, ['fault_domain', 'fd'], 'none');
   const driveMaxRpm = firstPresent(source, ['drive_max_rpm', 'dmr']);
+  const steeringMaxRpm = firstPresent(source, ['steering_max_rpm', 'smr']);
 
   return {
     online: true,
@@ -429,6 +433,9 @@ export function normalizeStatusPayload(payload) {
     driveMaxRpm: driveMaxRpm === undefined
       ? undefined
       : Math.round(safeNumber(driveMaxRpm, DEFAULT_APP_CONFIG.driveMaxRpm)),
+    steeringMaxRpm: steeringMaxRpm === undefined
+      ? undefined
+      : Math.round(safeNumber(steeringMaxRpm, DEFAULT_APP_CONFIG.steeringMaxRpm)),
     localGear: pickString(source, ['gear', 'g'], 'D').toUpperCase(),
     remoteGear: pickString(source, ['remote_gear', 'rg'], 'N').toUpperCase(),
     controlOwner: pickString(source, ['control_owner', 'co'], 'LOCAL').toUpperCase(),
@@ -483,7 +490,12 @@ export function normalizeStatusPayload(payload) {
     leftDriveInverted: pickBool(source, ['left_drive_inverted', 'ldi'], DEFAULT_APP_CONFIG.leftDriveInverted),
     rightDriveInverted: pickBool(source, ['right_drive_inverted', 'rdi'], DEFAULT_APP_CONFIG.rightDriveInverted),
     bleConnected: pickBool(source, ['ble_connected'], false),
-    remoteSource: pickString(source, ['remote_source', 'src'], 'NONE').toUpperCase()
+    remoteSource: pickString(source, ['remote_source', 'src'], 'NONE').toUpperCase(),
+    remoteAgeMs: pickRoundedNumber(source, ['remote_age_ms', 'ra'], 0),
+    remoteFrameCount: pickRoundedNumber(source, ['remote_frame_count', 'rfc'], 0),
+    remoteCrcErrorCount: pickRoundedNumber(source, ['remote_crc_error_count', 'rce'], 0),
+    remoteParseErrorCount: pickRoundedNumber(source, ['remote_parse_error_count', 'rpe'], 0),
+    remoteOverflowErrorCount: pickRoundedNumber(source, ['remote_overflow_error_count', 'roe'], 0)
   };
 }
 

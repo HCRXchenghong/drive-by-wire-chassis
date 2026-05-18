@@ -12,6 +12,7 @@ typedef enum
   EWM22_REMOTE_SOURCE_NONE = 0,
   EWM22_REMOTE_SOURCE_RC_FRAME = 1,
   EWM22_REMOTE_SOURCE_APP_JSON = 2,
+  EWM22_REMOTE_SOURCE_USB_JSON = 3,
 } ewm22_remote_source_t;
 
 typedef enum
@@ -53,6 +54,7 @@ void ewm22_link_init(UART_HandleTypeDef *huart);
 bool ewm22_link_send_text(const char *text);
 bool ewm22_link_pop_app_command_line(char *line, size_t max_len);
 const ewm22_link_state_t *ewm22_link_get_state(void);
+bool ewm22_link_inject_app_control_json(const char *line);
 const char *ewm22_link_remote_source_name(ewm22_remote_source_t source);
 const char *ewm22_link_remote_gear_name(ewm22_remote_gear_t gear);
 

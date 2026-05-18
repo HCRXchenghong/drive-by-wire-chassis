@@ -252,6 +252,7 @@ export default {
             wheelbaseMm: this.pendingProfile.wheelbaseMm,
             rearTrackMm: this.pendingProfile.rearTrackMm,
             driveMaxRpm: this.pendingProfile.driveMaxRpm,
+            steeringMaxRpm: this.pendingProfile.steeringMaxRpm,
             chassisType: this.pendingProfile.chassisType,
             driveAxle: this.pendingProfile.driveAxle,
             hasLinearSteering: !!this.pendingProfile.hasLinearSteering,

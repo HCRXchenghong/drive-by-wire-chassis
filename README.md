@@ -29,7 +29,7 @@
 这个 `v1.0.0` 不是早期空壳版本，而是当前可以烧录和现场联调的完整基线，已经包含：
 
 - `MSSD` 左右驱动轮目标转速下发与真实速度回读。
-- `drive_max_rpm` 最大驱动输出配置、保存、回读和 App 显示。
+- `drive_max_rpm` 最大驱动输出与 `steering_max_rpm` 最大转向输出配置、保存、回读和 App 显示。
 - CAN 事务门控、故障锁停、自动恢复和中文故障状态回传。
 - 机械转向位置反馈闭环与线性方向盘检测。
 - 本地踏板、本地挡位、App 急停 / 缓停、本地硬件急停。
@@ -43,7 +43,7 @@
 当前 `hex` 文件 SHA256：
 
 ```text
-41885C5FD3E7C1A75657BA0B800DF21C4FDB85B3249CF93B62BDEEC74E992024
+4208A4BD965DDE0A9E057CA644A734D9FC8539988E8CEB55B97920C837817D90
 ```
 
 说明：历史开发过程中曾经出现过 `v1.0.1 / v1.0.2 / v2.0.1` 这些本地或旧远端标签名，但当前 GitHub 发布以 `v1.0.0` 为准。
@@ -318,8 +318,11 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
   - `BRAKE_THROTTLE`
   - `ESTOP_THROTTLE`
 - `drive_max_rpm`
+- `steering_max_rpm`
 - `steer_can_node_id`
 - `handwheel_can_node_id`
+
+当前 App 与 F407 运行时保存的是 `chassis_type + drive_axle`，即 `ACKERMANN + FWD/RWD` 或 `DIFF`。代码里的 `DRIVE_MODE_AWD` 枚举属于历史/预留项，当前 App 没有 AWD 选择，`set_config` 也不再接受 `drive_mode:"AWD"` 作为可配置运行模式。
 
 ### 5.2 Flash 保存
 
@@ -344,13 +347,17 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 
 当前存储版本：
 
-- `VEHICLE_CONFIG_VERSION = 0x00040000`
-- `VEHICLE_CONFIG_STORAGE_VERSION = 0x00040000`
+- `VEHICLE_CONFIG_VERSION = 0x00070000`
+- `VEHICLE_CONFIG_STORAGE_VERSION = 0x00070000`
 
 并且当前已经兼容：
 
+- 自动识别并导入 `0x00060000` 版本配置结构
+- 自动识别并导入 `0x00050000` / `0x00040000` 版本配置结构
 - 自动识别并导入 `v1.0.1` 使用的 `0x00030000` 版本配置结构
 - 在旧配置里没有 `drive_max_rpm` 字段时，为其补上默认值 `500 RPM`
+- 在旧配置里没有 `steering_max_rpm` 字段时，为其补上默认值 `2000 RPM`
+- `0x00040000` 及更旧配置里的转向/方向盘标定值曾按 `int16_t` 保存，升级后会导入为 `int32_t`，但已经被旧版本截断的真实脉冲值无法自动恢复，需要现场重新标定。
 
 ### 5.3 节点号可配置化
 
@@ -370,24 +377,28 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 必须诚实说明：
 
 - 当前驱动轮控制器绑定用的 `DRIVE_CAN_NODE_ID` 仍是固件内固定值 `1`。
+- `MSSC` 节点号按手册低 7 位生效，App 和固件都限制为 `1 ~ 127`。
 - 用户这次明确要求的是把 `STEER_CAN_NODE_ID` 和 `HANDWHEEL_CAN_NODE_ID` 做成可配置参数，这一项已经完成。
 - 如果后续你也希望驱动轮控制器节点号可配置，可以再按同样模式把 `drive_can_node_id` 也加进 `vehicle_config_t`。
 
-### 5.4 最大驱动输出配置
+### 5.4 最大驱动与最大转向输出配置
 
-当前最大驱动输出不再是固件内部写死常量，而是正式配置项：
+当前最大驱动输出与最大转向输出都不再是固件内部写死常量，而是正式配置项：
 
 - 字段名：
   - `drive_max_rpm`
+  - `steering_max_rpm`
 - 默认值：
-  - `500`
+  - `drive_max_rpm = 500`
+  - `steering_max_rpm = 2000`
 - 当前约束范围：
-  - `50 ~ 5000 RPM`
+  - `drive_max_rpm = 50 ~ 5000 RPM`
+  - `steering_max_rpm = 200 ~ 5000 RPM`
 
 这条链路当前已经全部接通：
 
-1. App 配置页可输入 `driveMaxRpm`
-2. `set_app_config` 会把它编码成 `drive_max_rpm`
+1. App 配置页可输入 `driveMaxRpm` 和 `steeringMaxRpm`
+2. `set_app_config` 会把它们编码成 `drive_max_rpm` 和 `steering_max_rpm`
 3. STM32 保存到 `vehicle_config_t`
 4. Flash 保存结构写入该字段
 5. `config_ack`
@@ -401,6 +412,13 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 - 你在 App 里改的最大驱动输出，不是前端假显示
 - 它会真实影响本地 / 远程驱动目标转速换算上限
 - 下次上电后仍然保持
+
+转向时的左右驱动轮微差速也使用保存后的车身几何：
+
+- `wheelbase_mm` 用于把真实转向角换算成曲率。
+- `drive_axle = FWD` 时使用 `front_track_mm` 计算左右轮速差。
+- `drive_axle = RWD` 时使用 `rear_track_mm` 计算左右轮速差。
+- Ackermann 模式下微差速最大限制为 `35%`，避免左右轮速差过大。
 
 ### 5.5 CAN 事务门控
 
@@ -416,6 +434,7 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 3. 写命令虽然不等待协议 ACK，但也必须占用同一个发送窗口。
 4. 每次发送后都保留 `10 ms` 静默间隔，避免读写交错顶在一起。
 5. 机械转向和线性方向盘如果共用同一条 `CAN2`，它们天然会共用同一个事务调度槽位，不会各发各的。
+6. 未启用、未点动、未检测到反馈的线性方向盘节点不会被普通 stop / 故障保护 / 转向测试超时路径主动下发命令，避免未接方向盘时占用 `CAN2` 事务窗口。
 
 这样做的目的不是“把系统改慢”，而是为了避免之前那种典型风险：
 
@@ -1051,7 +1070,12 @@ App 现在已经按这些真实字段显示状态，而不是本地乱猜。
 - 机械转向 `MSSC` 节点号：`1`
 - 线性方向盘 `MSSC` 节点号：`2`
 
-但现在这两个号已经可在 App 配置页里改。
+但现在这两个号已经可在 App 配置页里改，合法范围为 `1 ~ 127`。
+
+标定注意：
+
+- `MSSC` 位置反馈由寄存器 `0x0013` 高字和 `0x0014` 低字拼成 signed 32-bit 脉冲值。
+- 机械转向和线性方向盘的 center / left_10 / right_10 / limit 标定值都按 `int32_t` 保存，不再按 16 位裁剪。
 
 ### 9.8 USB 调试
 
@@ -1155,11 +1179,12 @@ STM32 回：
 {"cmd":"set_remote_stop_state","soft_stop":false,"estop":false}
 ```
 
-### 10.5 配置命令中的节点号与最大驱动字段
+### 10.5 配置命令中的节点号与最大输出字段
 
 现在配置命令里可以直接带：
 
 - `drive_max_rpm`
+- `steering_max_rpm`
 - `steer_can_node_id`
 - `handwheel_can_node_id`
 
@@ -1174,6 +1199,7 @@ STM32 回：
   "wheelbase_mm": 1720,
   "rear_track_mm": 1260,
   "drive_max_rpm": 500,
+  "steering_max_rpm": 2000,
   "steer_can_node_id": 1,
   "handwheel_can_node_id": 2,
   "linear_steering_enabled": true,

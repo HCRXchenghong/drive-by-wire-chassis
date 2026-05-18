@@ -3623,8 +3623,6 @@ Discarded input sections
  .text          0x00000000        0x0 ./Src/ewm22_link.o
  .data          0x00000000        0x0 ./Src/ewm22_link.o
  .bss           0x00000000        0x0 ./Src/ewm22_link.o
- .text.ewm22_link_remote_source_name
-                0x00000000       0x38 ./Src/ewm22_link.o
  .text.ewm22_link_remote_gear_name
                 0x00000000       0x5c ./Src/ewm22_link.o
  .debug_macro   0x00000000      0xad8 ./Src/ewm22_link.o
@@ -3885,7 +3883,7 @@ Discarded input sections
  .data          0x00000000        0x0 ./Src/steering_controller_mssc.o
  .bss           0x00000000        0x0 ./Src/steering_controller_mssc.o
  .text.mssc_steering_controller_prepare_for_can_control
-                0x00000000       0x3a ./Src/steering_controller_mssc.o
+                0x00000000       0x2a ./Src/steering_controller_mssc.o
  .text.mssc_steering_controller_feedback_timeout_count
                 0x00000000       0x22 ./Src/steering_controller_mssc.o
  .debug_macro   0x00000000      0xad8 ./Src/steering_controller_mssc.o
@@ -5628,7 +5626,7 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
                 0x08000000                g_pfnVectors
                 0x08000188                        . = ALIGN (0x4)
 
-.text           0x08000190    0x1419c
+.text           0x08000190    0x152dc
                 0x08000190                        . = ALIGN (0x4)
  *(.text)
  .text          0x08000190       0x10 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strlen.o)
@@ -6233,985 +6231,1040 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  .text.can_transport_process_slot
                 0x08009916       0x84 ./Src/can_transport.o
  .text.can_transport_start
-                0x0800999a      0x124 ./Src/can_transport.o
+                0x0800999a      0x12a ./Src/can_transport.o
                 0x0800999a                can_transport_start
- *fill*         0x08009abe        0x2 
  .text.can_transport_process
-                0x08009ac0       0x3c ./Src/can_transport.o
-                0x08009ac0                can_transport_process
+                0x08009ac4       0x3c ./Src/can_transport.o
+                0x08009ac4                can_transport_process
  .text.can_transport_queue_read_std
-                0x08009afc       0xc8 ./Src/can_transport.o
-                0x08009afc                can_transport_queue_read_std
+                0x08009b00       0xc8 ./Src/can_transport.o
+                0x08009b00                can_transport_queue_read_std
  .text.can_transport_get_bus_state
-                0x08009bc4       0x48 ./Src/can_transport.o
-                0x08009bc4                can_transport_get_bus_state
+                0x08009bc8       0x48 ./Src/can_transport.o
+                0x08009bc8                can_transport_get_bus_state
  .text.can_transport_take_read_result
-                0x08009c0c      0x114 ./Src/can_transport.o
-                0x08009c0c                can_transport_take_read_result
+                0x08009c10      0x114 ./Src/can_transport.o
+                0x08009c10                can_transport_take_read_result
  .text.HAL_CAN_RxFifo0MsgPendingCallback
-                0x08009d20       0x16 ./Src/can_transport.o
-                0x08009d20                HAL_CAN_RxFifo0MsgPendingCallback
+                0x08009d24       0x16 ./Src/can_transport.o
+                0x08009d24                HAL_CAN_RxFifo0MsgPendingCallback
  .text.HAL_CAN_RxFifo0FullCallback
-                0x08009d36       0x16 ./Src/can_transport.o
-                0x08009d36                HAL_CAN_RxFifo0FullCallback
+                0x08009d3a       0x16 ./Src/can_transport.o
+                0x08009d3a                HAL_CAN_RxFifo0FullCallback
  .text.HAL_CAN_ErrorCallback
-                0x08009d4c       0x7c ./Src/can_transport.o
-                0x08009d4c                HAL_CAN_ErrorCallback
+                0x08009d50       0x7c ./Src/can_transport.o
+                0x08009d50                HAL_CAN_ErrorCallback
  .text.ascii_stricmp
-                0x08009dc8       0x98 ./Src/chassis_app.o
+                0x08009dcc       0x98 ./Src/chassis_app.o
  .text.json_get_uint32
-                0x08009e60       0x8a ./Src/chassis_app.o
+                0x08009e64       0x8a ./Src/chassis_app.o
  .text.json_get_int32
-                0x08009eea       0x8a ./Src/chassis_app.o
+                0x08009eee       0x8a ./Src/chassis_app.o
  .text.json_get_bool
-                0x08009f74      0x200 ./Src/chassis_app.o
+                0x08009f78      0x200 ./Src/chassis_app.o
  .text.json_get_string
-                0x0800a174       0xba ./Src/chassis_app.o
- *fill*         0x0800a22e        0x2 
+                0x0800a178       0xba ./Src/chassis_app.o
+ *fill*         0x0800a232        0x2 
  .text.command_is
-                0x0800a230       0x4c ./Src/chassis_app.o
+                0x0800a234       0x4c ./Src/chassis_app.o
  .text.clamp_int32
-                0x0800a27c       0x32 ./Src/chassis_app.o
+                0x0800a280       0x32 ./Src/chassis_app.o
  .text.clamp_float
-                0x0800a2ae       0x52 ./Src/chassis_app.o
+                0x0800a2b2       0x52 ./Src/chassis_app.o
  .text.float_to_int32
-                0x0800a300       0x4a ./Src/chassis_app.o
- *fill*         0x0800a34a        0x2 
+                0x0800a304       0x4a ./Src/chassis_app.o
+ *fill*         0x0800a34e        0x2 
  .text.reply_write
-                0x0800a34c       0x40 ./Src/chassis_app.o
+                0x0800a350       0x40 ./Src/chassis_app.o
  .text.reply_printf
-                0x0800a38c       0x38 ./Src/chassis_app.o
+                0x0800a390       0x38 ./Src/chassis_app.o
  .text.chassis_fault_code_name
-                0x0800a3c4       0x74 ./Src/chassis_app.o
+                0x0800a3c8       0x74 ./Src/chassis_app.o
  .text.chassis_fault_domain_name
-                0x0800a438       0x48 ./Src/chassis_app.o
+                0x0800a43c       0x48 ./Src/chassis_app.o
  .text.steering_side_raw_per_10deg
-                0x0800a480       0x54 ./Src/chassis_app.o
+                0x0800a484       0x46 ./Src/chassis_app.o
+ .text.steering_raw_on_same_side
+                0x0800a4ca       0x5c ./Src/chassis_app.o
+ *fill*         0x0800a526        0x2 
  .text.steering_raw_to_angle_deg
-                0x0800a4d4       0xb0 ./Src/chassis_app.o
+                0x0800a528      0x108 ./Src/chassis_app.o
  .text.steering_target_raw_from_norm
-                0x0800a584       0xa8 ./Src/chassis_app.o
+                0x0800a630       0xa4 ./Src/chassis_app.o
  .text.steering_target_rpm_from_feedback
-                0x0800a62c       0xf4 ./Src/chassis_app.o
+                0x0800a6d4      0x160 ./Src/chassis_app.o
  .text.control_reset_targets
-                0x0800a720       0x88 ./Src/chassis_app.o
+                0x0800a834       0x90 ./Src/chassis_app.o
+ .text.steering_output_cache_reset
+                0x0800a8c4       0x28 ./Src/chassis_app.o
+ .text.steering_output_cache_mark
+                0x0800a8ec       0x30 ./Src/chassis_app.o
+ .text.steering_output_apply
+                0x0800a91c       0xb8 ./Src/chassis_app.o
  .text.control_zero_drive_targets
-                0x0800a7a8       0x4c ./Src/chassis_app.o
+                0x0800a9d4       0x4c ./Src/chassis_app.o
+ .text.control_stop_outputs_selective
+                0x0800aa20       0x94 ./Src/chassis_app.o
  .text.control_stop_outputs
-                0x0800a7f4       0x68 ./Src/chassis_app.o
+                0x0800aab4       0x16 ./Src/chassis_app.o
+ *fill*         0x0800aaca        0x2 
  .text.control_set_enabled
-                0x0800a85c       0x40 ./Src/chassis_app.o
+                0x0800aacc       0x40 ./Src/chassis_app.o
  .text.control_outputs_allowed
-                0x0800a89c       0x34 ./Src/chassis_app.o
+                0x0800ab0c       0x34 ./Src/chassis_app.o
  .text.int32_abs_exceeds
-                0x0800a8d0       0x34 ./Src/chassis_app.o
+                0x0800ab40       0x34 ./Src/chassis_app.o
  .text.drive_direction_apply_output_rpm
-                0x0800a904       0x26 ./Src/chassis_app.o
+                0x0800ab74       0x26 ./Src/chassis_app.o
  .text.drive_direction_normalize_feedback_rpm
-                0x0800a92a       0x26 ./Src/chassis_app.o
+                0x0800ab9a       0x26 ./Src/chassis_app.o
  .text.drive_direction_apply_right_output_rpm
-                0x0800a950       0x36 ./Src/chassis_app.o
+                0x0800abc0       0x36 ./Src/chassis_app.o
  .text.drive_direction_apply_left_output_rpm
-                0x0800a986       0x36 ./Src/chassis_app.o
+                0x0800abf6       0x36 ./Src/chassis_app.o
  .text.drive_direction_normalize_right_feedback_rpm
-                0x0800a9bc       0x36 ./Src/chassis_app.o
+                0x0800ac2c       0x36 ./Src/chassis_app.o
  .text.drive_direction_normalize_left_feedback_rpm
-                0x0800a9f2       0x36 ./Src/chassis_app.o
+                0x0800ac62       0x36 ./Src/chassis_app.o
  .text.control_drive_max_rpm
-                0x0800aa28       0x46 ./Src/chassis_app.o
- *fill*         0x0800aa6e        0x2 
+                0x0800ac98       0x4c ./Src/chassis_app.o
+ .text.control_steering_max_rpm
+                0x0800ace4       0x4c ./Src/chassis_app.o
  .text.pedal_raw_to_normalized
-                0x0800aa70       0x94 ./Src/chassis_app.o
+                0x0800ad30       0x94 ./Src/chassis_app.o
  .text.calibration_override_active
-                0x0800ab04       0x30 ./Src/chassis_app.o
+                0x0800adc4       0x30 ./Src/chassis_app.o
  .text.drive_feedback_available
-                0x0800ab34       0x34 ./Src/chassis_app.o
+                0x0800adf4       0x34 ./Src/chassis_app.o
  .text.preferred_vehicle_motion_state
-                0x0800ab68       0x24 ./Src/chassis_app.o
+                0x0800ae28       0x24 ./Src/chassis_app.o
  .text.remote_command_is_fresh
-                0x0800ab8c       0x40 ./Src/chassis_app.o
+                0x0800ae4c       0x40 ./Src/chassis_app.o
  .text.remote_link_has_listener
-                0x0800abcc       0x60 ./Src/chassis_app.o
+                0x0800ae8c       0x60 ./Src/chassis_app.o
  .text.remote_drive_authority_active
-                0x0800ac2c       0x38 ./Src/chassis_app.o
+                0x0800aeec       0x38 ./Src/chassis_app.o
  .text.remote_control_mode_name
-                0x0800ac64       0x2c ./Src/chassis_app.o
+                0x0800af24       0x2c ./Src/chassis_app.o
  .text.control_owner_name
-                0x0800ac90       0x30 ./Src/chassis_app.o
+                0x0800af50       0x30 ./Src/chassis_app.o
  .text.chassis_service_actions_locked
-                0x0800acc0       0x58 ./Src/chassis_app.o
+                0x0800af80       0x58 ./Src/chassis_app.o
+ .text.chassis_drive_motion_locked
+                0x0800afd8       0x64 ./Src/chassis_app.o
  .text.controllers_bind_from_config
-                0x0800ad18       0x68 ./Src/chassis_app.o
+                0x0800b03c       0x68 ./Src/chassis_app.o
+ .text.can_start_retry_process
+                0x0800b0a4       0xd8 ./Src/chassis_app.o
  .text.linear_steering_detected
-                0x0800ad80       0x5c ./Src/chassis_app.o
+                0x0800b17c       0x5c ./Src/chassis_app.o
+ .text.handwheel_controller_should_command
+                0x0800b1d8       0x40 ./Src/chassis_app.o
  .text.steering_feedback_get
-                0x0800addc       0x24 ./Src/chassis_app.o
+                0x0800b218       0x24 ./Src/chassis_app.o
  .text.steering_feedback_is_recent
-                0x0800ae00       0x40 ./Src/chassis_app.o
+                0x0800b23c       0x40 ./Src/chassis_app.o
  .text.steering_feedback_update
-                0x0800ae40       0x4c ./Src/chassis_app.o
+                0x0800b27c       0x4c ./Src/chassis_app.o
  .text.handwheel_feedback_get
-                0x0800ae8c       0x24 ./Src/chassis_app.o
+                0x0800b2c8       0x24 ./Src/chassis_app.o
  .text.handwheel_feedback_update
-                0x0800aeb0       0x78 ./Src/chassis_app.o
+                0x0800b2ec       0x78 ./Src/chassis_app.o
+ .text.calibration_runtime_refresh_cached_feedbacks
+                0x0800b364       0x44 ./Src/chassis_app.o
+ .text.calibration_runtime_update_axis
+                0x0800b3a8       0x26 ./Src/chassis_app.o
+ *fill*         0x0800b3ce        0x2 
  .text.drive_feedback_update
-                0x0800af28      0x2f4 ./Src/chassis_app.o
+                0x0800b3d0      0x2f4 ./Src/chassis_app.o
  .text.fault_state_refresh
-                0x0800b21c      0x300 ./Src/chassis_app.o
+                0x0800b6c4      0x32c ./Src/chassis_app.o
  .text.drive_controller_apply_outputs
-                0x0800b51c       0x94 ./Src/chassis_app.o
+                0x0800b9f0       0x94 ./Src/chassis_app.o
  .text.control_drive_safety_stop
-                0x0800b5b0       0x60 ./Src/chassis_app.o
+                0x0800ba84       0x60 ./Src/chassis_app.o
  .text.control_compute_mode_split
-                0x0800b610      0x148 ./Src/chassis_app.o
+                0x0800bae4      0x160 ./Src/chassis_app.o
  .text.calibration_runtime_update
-                0x0800b758       0x2c ./Src/chassis_app.o
+                0x0800bc44       0x30 ./Src/chassis_app.o
  .text.control_update_targets
-                0x0800b784      0x650 ./Src/chassis_app.o
+                0x0800bc74      0x670 ./Src/chassis_app.o
  .text.control_process
-                0x0800bdd4       0xc8 ./Src/chassis_app.o
+                0x0800c2e4       0xc8 ./Src/chassis_app.o
  .text.calibration_process
-                0x0800be9c       0x5c ./Src/chassis_app.o
+                0x0800c3ac       0x58 ./Src/chassis_app.o
  .text.debug_test_watchdog_process
-                0x0800bef8       0xa8 ./Src/chassis_app.o
+                0x0800c404       0xc4 ./Src/chassis_app.o
  .text.publish_remote_status_if_needed
-                0x0800bfa0      0x480 ./Src/chassis_app.o
+                0x0800c4c8      0x544 ./Src/chassis_app.o
  .text.reply_capabilities
-                0x0800c420       0x5c ./Src/chassis_app.o
+                0x0800ca0c       0x5c ./Src/chassis_app.o
  .text.reply_linear_steering_status
-                0x0800c47c      0x100 ./Src/chassis_app.o
+                0x0800ca68      0x100 ./Src/chassis_app.o
  .text.reply_config
-                0x0800c57c      0x100 ./Src/chassis_app.o
+                0x0800cb68      0x10c ./Src/chassis_app.o
  .text.reply_calibration_status
-                0x0800c67c       0xc4 ./Src/chassis_app.o
+                0x0800cc74       0xa4 ./Src/chassis_app.o
  .text.reply_status
-                0x0800c740      0x328 ./Src/chassis_app.o
+                0x0800cd18      0x600 ./Src/chassis_app.o
  .text.parse_pedal_name
-                0x0800ca68       0x80 ./Src/chassis_app.o
+                0x0800d318       0x80 ./Src/chassis_app.o
  .text.parse_remote_control_mode
-                0x0800cae8       0xb8 ./Src/chassis_app.o
+                0x0800d398       0xb8 ./Src/chassis_app.o
  .text.parse_calibration_axis
-                0x0800cba0       0x80 ./Src/chassis_app.o
+                0x0800d450       0x80 ./Src/chassis_app.o
  .text.resolve_calibration_field
-                0x0800cc20      0x190 ./Src/chassis_app.o
+                0x0800d4d0      0x190 ./Src/chassis_app.o
  .text.handle_set_config
-                0x0800cdb0      0x28c ./Src/chassis_app.o
+                0x0800d660      0x29c ./Src/chassis_app.o
  .text.handle_save_config
-                0x0800d03c       0x48 ./Src/chassis_app.o
+                0x0800d8fc       0x48 ./Src/chassis_app.o
  .text.handle_load_config
-                0x0800d084       0x3c ./Src/chassis_app.o
+                0x0800d944       0x3c ./Src/chassis_app.o
  .text.handle_set_control_enable
-                0x0800d0c0       0x48 ./Src/chassis_app.o
+                0x0800d980       0x48 ./Src/chassis_app.o
  .text.handle_set_steer_input
-                0x0800d108       0x5c ./Src/chassis_app.o
+                0x0800d9c8       0x5c ./Src/chassis_app.o
+ .text.handle_app_control_inject
+                0x0800da24       0x3c ./Src/chassis_app.o
  .text.handle_ewm22_send_at
-                0x0800d164       0x64 ./Src/chassis_app.o
+                0x0800da60       0x64 ./Src/chassis_app.o
  .text.handle_drive_test
-                0x0800d1c8      0x1ac ./Src/chassis_app.o
+                0x0800dac4      0x1ac ./Src/chassis_app.o
  .text.handle_steer_test
-                0x0800d374       0xec ./Src/chassis_app.o
+                0x0800dc70      0x11c ./Src/chassis_app.o
  .text.handle_stop_all
-                0x0800d460       0xf4 ./Src/chassis_app.o
+                0x0800dd8c      0x114 ./Src/chassis_app.o
  .text.handle_query_linear_steering
-                0x0800d554        0xc ./Src/chassis_app.o
+                0x0800dea0        0xc ./Src/chassis_app.o
  .text.handle_set_remote_mode
-                0x0800d560       0x9c ./Src/chassis_app.o
+                0x0800deac       0x9c ./Src/chassis_app.o
  .text.handle_set_remote_stop_state
-                0x0800d5fc      0x150 ./Src/chassis_app.o
+                0x0800df48      0x150 ./Src/chassis_app.o
  .text.handle_get_calibration
-                0x0800d74c       0x10 ./Src/chassis_app.o
+                0x0800e098       0x10 ./Src/chassis_app.o
  .text.handle_get_capabilities
-                0x0800d75c        0xc ./Src/chassis_app.o
+                0x0800e0a8        0xc ./Src/chassis_app.o
  .text.handle_steering_jog
-                0x0800d768      0x1b0 ./Src/chassis_app.o
+                0x0800e0b4      0x218 ./Src/chassis_app.o
  .text.handle_set_calibration_point
-                0x0800d918      0x11c ./Src/chassis_app.o
+                0x0800e2cc      0x110 ./Src/chassis_app.o
  .text.handle_capture_pedal_sample
-                0x0800da34      0x274 ./Src/chassis_app.o
+                0x0800e3dc      0x28c ./Src/chassis_app.o
  .text.handle_save_calibration
-                0x0800dca8       0x48 ./Src/chassis_app.o
+                0x0800e668       0x48 ./Src/chassis_app.o
  .text.handle_help
-                0x0800dcf0       0x14 ./Src/chassis_app.o
+                0x0800e6b0       0x14 ./Src/chassis_app.o
  .text.process_line_with_reply_target
-                0x0800dd04      0x28c ./Src/chassis_app.o
+                0x0800e6c4      0x2ec ./Src/chassis_app.o
  .text.chassis_app_init
-                0x0800df90      0x144 ./Src/chassis_app.o
-                0x0800df90                chassis_app_init
+                0x0800e9b0      0x150 ./Src/chassis_app.o
+                0x0800e9b0                chassis_app_init
  .text.chassis_app_process
-                0x0800e0d4       0x7e ./Src/chassis_app.o
-                0x0800e0d4                chassis_app_process
+                0x0800eb00       0x82 ./Src/chassis_app.o
+                0x0800eb00                chassis_app_process
  .text.chassis_app_usb_rx
-                0x0800e152       0x1a ./Src/chassis_app.o
-                0x0800e152                chassis_app_usb_rx
+                0x0800eb82       0x1a ./Src/chassis_app.o
+                0x0800eb82                chassis_app_usb_rx
  .text.mssd_build_write32
-                0x0800e16c       0x86 ./Src/drive_controller_mssd.o
+                0x0800eb9c       0x86 ./Src/drive_controller_mssd.o
  .text.mssd_build_write16
-                0x0800e1f2       0x72 ./Src/drive_controller_mssd.o
+                0x0800ec22       0x72 ./Src/drive_controller_mssd.o
  .text.mssd_build_read16
-                0x0800e264       0x66 ./Src/drive_controller_mssd.o
+                0x0800ec94       0x66 ./Src/drive_controller_mssd.o
  .text.mssd_feedback_reg_by_index
-                0x0800e2ca       0x38 ./Src/drive_controller_mssd.o
- *fill*         0x0800e302        0x2 
+                0x0800ecfa       0x38 ./Src/drive_controller_mssd.o
+ *fill*         0x0800ed32        0x2 
  .text.mssd_feedback_cookie
-                0x0800e304       0x34 ./Src/drive_controller_mssd.o
+                0x0800ed34       0x34 ./Src/drive_controller_mssd.o
  .text.mssd_write_cookie
-                0x0800e338       0x24 ./Src/drive_controller_mssd.o
+                0x0800ed68       0x24 ./Src/drive_controller_mssd.o
  .text.mssd_invalidate_feedback_cache
-                0x0800e35c       0x5c ./Src/drive_controller_mssd.o
+                0x0800ed8c       0x5c ./Src/drive_controller_mssd.o
  .text.mssd_consume_feedback_result
-                0x0800e3b8      0x198 ./Src/drive_controller_mssd.o
+                0x0800ede8      0x198 ./Src/drive_controller_mssd.o
  .text.mssd_drain_feedback_results
-                0x0800e550       0x90 ./Src/drive_controller_mssd.o
+                0x0800ef80       0x90 ./Src/drive_controller_mssd.o
  .text.mssd_drain_write_results
-                0x0800e5e0       0x84 ./Src/drive_controller_mssd.o
+                0x0800f010       0x84 ./Src/drive_controller_mssd.o
  .text.mssd_sync_recovery_state
-                0x0800e664       0x94 ./Src/drive_controller_mssd.o
+                0x0800f094       0x94 ./Src/drive_controller_mssd.o
  .text.mssd_queue_read16
-                0x0800e6f8       0x7c ./Src/drive_controller_mssd.o
+                0x0800f128       0x7c ./Src/drive_controller_mssd.o
  .text.mssd_queue_write32
-                0x0800e774       0x84 ./Src/drive_controller_mssd.o
+                0x0800f1a4       0x84 ./Src/drive_controller_mssd.o
  .text.mssd_queue_write16
-                0x0800e7f8       0x8a ./Src/drive_controller_mssd.o
+                0x0800f228       0x8a ./Src/drive_controller_mssd.o
  .text.mssd_drive_controller_bind
-                0x0800e882       0xb2 ./Src/drive_controller_mssd.o
-                0x0800e882                mssd_drive_controller_bind
+                0x0800f2b2       0xb2 ./Src/drive_controller_mssd.o
+                0x0800f2b2                mssd_drive_controller_bind
  .text.mssd_drive_controller_set_wheel_rpm_priority
-                0x0800e934       0x40 ./Src/drive_controller_mssd.o
-                0x0800e934                mssd_drive_controller_set_wheel_rpm_priority
+                0x0800f364       0x40 ./Src/drive_controller_mssd.o
+                0x0800f364                mssd_drive_controller_set_wheel_rpm_priority
  .text.mssd_drive_controller_set_wheel_rpm
-                0x0800e974       0x22 ./Src/drive_controller_mssd.o
-                0x0800e974                mssd_drive_controller_set_wheel_rpm
+                0x0800f3a4       0x22 ./Src/drive_controller_mssd.o
+                0x0800f3a4                mssd_drive_controller_set_wheel_rpm
  .text.mssd_drive_controller_set_stop_mode_priority
-                0x0800e996       0x50 ./Src/drive_controller_mssd.o
-                0x0800e996                mssd_drive_controller_set_stop_mode_priority
+                0x0800f3c6       0x50 ./Src/drive_controller_mssd.o
+                0x0800f3c6                mssd_drive_controller_set_stop_mode_priority
  .text.mssd_drive_controller_apply_stop_mode_priority
-                0x0800e9e6       0x26 ./Src/drive_controller_mssd.o
-                0x0800e9e6                mssd_drive_controller_apply_stop_mode_priority
+                0x0800f416       0x26 ./Src/drive_controller_mssd.o
+                0x0800f416                mssd_drive_controller_apply_stop_mode_priority
  .text.mssd_drive_controller_stop_priority
-                0x0800ea0c       0x3e ./Src/drive_controller_mssd.o
-                0x0800ea0c                mssd_drive_controller_stop_priority
+                0x0800f43c       0x3e ./Src/drive_controller_mssd.o
+                0x0800f43c                mssd_drive_controller_stop_priority
  .text.mssd_drive_controller_stop
-                0x0800ea4a       0x1a ./Src/drive_controller_mssd.o
-                0x0800ea4a                mssd_drive_controller_stop
+                0x0800f47a       0x1a ./Src/drive_controller_mssd.o
+                0x0800f47a                mssd_drive_controller_stop
  .text.mssd_drive_controller_service
-                0x0800ea64       0xcc ./Src/drive_controller_mssd.o
-                0x0800ea64                mssd_drive_controller_service
+                0x0800f494       0xcc ./Src/drive_controller_mssd.o
+                0x0800f494                mssd_drive_controller_service
  .text.mssd_drive_controller_get_feedback
-                0x0800eb30       0xaa ./Src/drive_controller_mssd.o
-                0x0800eb30                mssd_drive_controller_get_feedback
- *fill*         0x0800ebda        0x2 
+                0x0800f560       0xaa ./Src/drive_controller_mssd.o
+                0x0800f560                mssd_drive_controller_get_feedback
+ *fill*         0x0800f60a        0x2 
  .text.ewm22_link_start_rx
-                0x0800ebdc       0x40 ./Src/ewm22_link.o
+                0x0800f60c       0x40 ./Src/ewm22_link.o
  .text.ascii_stricmp
-                0x0800ec1c       0x98 ./Src/ewm22_link.o
+                0x0800f64c       0x98 ./Src/ewm22_link.o
  .text.clamp_int32
-                0x0800ecb4       0x32 ./Src/ewm22_link.o
+                0x0800f6e4       0x32 ./Src/ewm22_link.o
  .text.hex_nibble
-                0x0800ece6       0x54 ./Src/ewm22_link.o
+                0x0800f716       0x54 ./Src/ewm22_link.o
  .text.checksum_xor
-                0x0800ed3a       0x34 ./Src/ewm22_link.o
- *fill*         0x0800ed6e        0x2 
+                0x0800f76a       0x34 ./Src/ewm22_link.o
+ *fill*         0x0800f79e        0x2 
  .text.ewm22_link_store_text_line
-                0x0800ed70       0x4c ./Src/ewm22_link.o
+                0x0800f7a0       0x4c ./Src/ewm22_link.o
  .text.ewm22_link_parse_gear_string
-                0x0800edbc       0xd0 ./Src/ewm22_link.o
+                0x0800f7ec       0xd0 ./Src/ewm22_link.o
  .text.ewm22_link_default_gear_from_throttle
-                0x0800ee8c       0x2a ./Src/ewm22_link.o
- *fill*         0x0800eeb6        0x2 
+                0x0800f8bc       0x2a ./Src/ewm22_link.o
+ *fill*         0x0800f8e6        0x2 
  .text.ewm22_link_accept_remote_command
-                0x0800eeb8       0xa8 ./Src/ewm22_link.o
+                0x0800f8e8       0xa8 ./Src/ewm22_link.o
  .text.parse_int32_token
-                0x0800ef60       0x9c ./Src/ewm22_link.o
+                0x0800f990       0x9c ./Src/ewm22_link.o
  .text.parse_uint32_token
-                0x0800effc       0x9c ./Src/ewm22_link.o
+                0x0800fa2c       0x9c ./Src/ewm22_link.o
  .text.json_find_value
-                0x0800f098       0x5a ./Src/ewm22_link.o
+                0x0800fac8       0x5a ./Src/ewm22_link.o
  .text.json_get_int32
-                0x0800f0f2       0x6e ./Src/ewm22_link.o
+                0x0800fb22       0x6e ./Src/ewm22_link.o
  .text.json_get_uint32
-                0x0800f160       0x6e ./Src/ewm22_link.o
+                0x0800fb90       0x6e ./Src/ewm22_link.o
  .text.json_get_string
-                0x0800f1ce       0x94 ./Src/ewm22_link.o
- *fill*         0x0800f262        0x2 
+                0x0800fbfe       0x94 ./Src/ewm22_link.o
+ *fill*         0x0800fc92        0x2 
  .text.ewm22_link_store_app_command_line
-                0x0800f264      0x118 ./Src/ewm22_link.o
+                0x0800fc94      0x118 ./Src/ewm22_link.o
  .text.ewm22_link_parse_remote_frame
-                0x0800f37c      0x1f8 ./Src/ewm22_link.o
+                0x0800fdac      0x1f8 ./Src/ewm22_link.o
  .text.ewm22_link_parse_app_control_json
-                0x0800f574      0x1bc ./Src/ewm22_link.o
+                0x0800ffa4      0x1e8 ./Src/ewm22_link.o
  .text.ewm22_link_parse_status_line
-                0x0800f730      0x23c ./Src/ewm22_link.o
+                0x0801018c      0x23c ./Src/ewm22_link.o
  .text.ewm22_link_process_line
-                0x0800f96c       0x54 ./Src/ewm22_link.o
+                0x080103c8       0x54 ./Src/ewm22_link.o
  .text.ewm22_link_process_byte
-                0x0800f9c0       0xbc ./Src/ewm22_link.o
+                0x0801041c       0xbc ./Src/ewm22_link.o
  .text.ewm22_link_init
-                0x0800fa7c       0x88 ./Src/ewm22_link.o
-                0x0800fa7c                ewm22_link_init
+                0x080104d8       0x88 ./Src/ewm22_link.o
+                0x080104d8                ewm22_link_init
  .text.ewm22_link_send_text
-                0x0800fb04       0x8c ./Src/ewm22_link.o
-                0x0800fb04                ewm22_link_send_text
+                0x08010560       0x8c ./Src/ewm22_link.o
+                0x08010560                ewm22_link_send_text
  .text.ewm22_link_pop_app_command_line
-                0x0800fb90       0xc8 ./Src/ewm22_link.o
-                0x0800fb90                ewm22_link_pop_app_command_line
+                0x080105ec       0xc8 ./Src/ewm22_link.o
+                0x080105ec                ewm22_link_pop_app_command_line
  .text.ewm22_link_get_state
-                0x0800fc58       0x14 ./Src/ewm22_link.o
-                0x0800fc58                ewm22_link_get_state
+                0x080106b4       0x14 ./Src/ewm22_link.o
+                0x080106b4                ewm22_link_get_state
+ .text.ewm22_link_inject_app_control_json
+                0x080106c8       0x34 ./Src/ewm22_link.o
+                0x080106c8                ewm22_link_inject_app_control_json
+ .text.ewm22_link_remote_source_name
+                0x080106fc       0x48 ./Src/ewm22_link.o
+                0x080106fc                ewm22_link_remote_source_name
  .text.HAL_UART_RxCpltCallback
-                0x0800fc6c       0x3c ./Src/ewm22_link.o
-                0x0800fc6c                HAL_UART_RxCpltCallback
+                0x08010744       0x3c ./Src/ewm22_link.o
+                0x08010744                HAL_UART_RxCpltCallback
  .text.HAL_UART_ErrorCallback
-                0x0800fca8       0x38 ./Src/ewm22_link.o
-                0x0800fca8                HAL_UART_ErrorCallback
- .text.main     0x0800fce0       0x4c ./Src/main.o
-                0x0800fce0                main
+                0x08010780       0x38 ./Src/ewm22_link.o
+                0x08010780                HAL_UART_ErrorCallback
+ .text.main     0x080107b8       0x4c ./Src/main.o
+                0x080107b8                main
  .text.SystemClock_Config
-                0x0800fd2c       0xd4 ./Src/main.o
-                0x0800fd2c                SystemClock_Config
+                0x08010804       0xd4 ./Src/main.o
+                0x08010804                SystemClock_Config
  .text.MX_ADC1_Init
-                0x0800fe00       0xa4 ./Src/main.o
+                0x080108d8       0xa4 ./Src/main.o
  .text.MX_CAN1_Init
-                0x0800fea4       0x6c ./Src/main.o
+                0x0801097c       0x6c ./Src/main.o
  .text.MX_CAN2_Init
-                0x0800ff10       0x6c ./Src/main.o
+                0x080109e8       0x6c ./Src/main.o
  .text.MX_USART1_UART_Init
-                0x0800ff7c       0x54 ./Src/main.o
+                0x08010a54       0x54 ./Src/main.o
  .text.MX_USART2_UART_Init
-                0x0800ffd0       0x54 ./Src/main.o
+                0x08010aa8       0x54 ./Src/main.o
  .text.MX_GPIO_Init
-                0x08010024       0xb0 ./Src/main.o
+                0x08010afc       0xb0 ./Src/main.o
  .text.Error_Handler
-                0x080100d4        0xc ./Src/main.o
-                0x080100d4                Error_Handler
+                0x08010bac        0xc ./Src/main.o
+                0x08010bac                Error_Handler
  .text.mssc_build_write16
-                0x080100e0       0x76 ./Src/steering_controller_mssc.o
+                0x08010bb8       0x76 ./Src/steering_controller_mssc.o
  .text.mssc_build_read16
-                0x08010156       0x66 ./Src/steering_controller_mssc.o
+                0x08010c2e       0x66 ./Src/steering_controller_mssc.o
  .text.mssc_feedback_cookie
-                0x080101bc       0x34 ./Src/steering_controller_mssc.o
+                0x08010c94       0x34 ./Src/steering_controller_mssc.o
  .text.mssc_write_cookie
-                0x080101f0       0x24 ./Src/steering_controller_mssc.o
+                0x08010cc8       0x24 ./Src/steering_controller_mssc.o
  .text.mssc_bus_has_pending_transaction
-                0x08010214       0x5e ./Src/steering_controller_mssc.o
+                0x08010cec       0x5e ./Src/steering_controller_mssc.o
  .text.mssc_invalidate_feedback_cache
-                0x08010272       0x36 ./Src/steering_controller_mssc.o
+                0x08010d4a       0x3c ./Src/steering_controller_mssc.o
  .text.mssc_queue_write16
-                0x080102a8       0x8c ./Src/steering_controller_mssc.o
+                0x08010d86       0x8c ./Src/steering_controller_mssc.o
  .text.mssc_queue_read16
-                0x08010334       0x7c ./Src/steering_controller_mssc.o
+                0x08010e12       0x7c ./Src/steering_controller_mssc.o
  .text.mssc_consume_feedback_result
-                0x080103b0       0xfa ./Src/steering_controller_mssc.o
- *fill*         0x080104aa        0x2 
+                0x08010e8e      0x154 ./Src/steering_controller_mssc.o
+ *fill*         0x08010fe2        0x2 
  .text.mssc_drain_feedback_results
-                0x080104ac       0x90 ./Src/steering_controller_mssc.o
+                0x08010fe4       0x90 ./Src/steering_controller_mssc.o
  .text.mssc_consume_write_result
-                0x0801053c       0x5a ./Src/steering_controller_mssc.o
- *fill*         0x08010596        0x2 
+                0x08011074       0x5a ./Src/steering_controller_mssc.o
+ *fill*         0x080110ce        0x2 
  .text.mssc_drain_write_results
-                0x08010598       0x90 ./Src/steering_controller_mssc.o
+                0x080110d0       0x90 ./Src/steering_controller_mssc.o
  .text.mssc_sync_recovery_state
-                0x08010628       0x94 ./Src/steering_controller_mssc.o
+                0x08011160       0x94 ./Src/steering_controller_mssc.o
  .text.mssc_queue_prepare_sequence
-                0x080106bc       0x5e ./Src/steering_controller_mssc.o
+                0x080111f4       0x5e ./Src/steering_controller_mssc.o
  .text.mssc_steering_controller_bind
-                0x0801071a       0x94 ./Src/steering_controller_mssc.o
-                0x0801071a                mssc_steering_controller_bind
+                0x08011252       0x9a ./Src/steering_controller_mssc.o
+                0x08011252                mssc_steering_controller_bind
  .text.mssc_steering_controller_set_speed_rpm_priority
-                0x080107ae       0x8a ./Src/steering_controller_mssc.o
-                0x080107ae                mssc_steering_controller_set_speed_rpm_priority
+                0x080112ec       0x7a ./Src/steering_controller_mssc.o
+                0x080112ec                mssc_steering_controller_set_speed_rpm_priority
  .text.mssc_steering_controller_set_speed_rpm
-                0x08010838       0x24 ./Src/steering_controller_mssc.o
-                0x08010838                mssc_steering_controller_set_speed_rpm
+                0x08011366       0x24 ./Src/steering_controller_mssc.o
+                0x08011366                mssc_steering_controller_set_speed_rpm
  .text.mssc_steering_controller_stop_priority
-                0x0801085c       0x60 ./Src/steering_controller_mssc.o
-                0x0801085c                mssc_steering_controller_stop_priority
+                0x0801138a       0x50 ./Src/steering_controller_mssc.o
+                0x0801138a                mssc_steering_controller_stop_priority
  .text.mssc_steering_controller_stop
-                0x080108bc       0x1a ./Src/steering_controller_mssc.o
-                0x080108bc                mssc_steering_controller_stop
+                0x080113da       0x1a ./Src/steering_controller_mssc.o
+                0x080113da                mssc_steering_controller_stop
  .text.mssc_steering_controller_feedback_process
-                0x080108d6       0x18 ./Src/steering_controller_mssc.o
-                0x080108d6                mssc_steering_controller_feedback_process
+                0x080113f4       0x18 ./Src/steering_controller_mssc.o
+                0x080113f4                mssc_steering_controller_feedback_process
  .text.mssc_steering_controller_service
-                0x080108ee       0xca ./Src/steering_controller_mssc.o
-                0x080108ee                mssc_steering_controller_service
+                0x0801140c       0xca ./Src/steering_controller_mssc.o
+                0x0801140c                mssc_steering_controller_service
  .text.mssc_steering_controller_get_position_raw
-                0x080109b8       0x4c ./Src/steering_controller_mssc.o
-                0x080109b8                mssc_steering_controller_get_position_raw
+                0x080114d6       0x4c ./Src/steering_controller_mssc.o
+                0x080114d6                mssc_steering_controller_get_position_raw
  .text.mssc_steering_controller_feedback_fault_active
-                0x08010a04       0x2e ./Src/steering_controller_mssc.o
-                0x08010a04                mssc_steering_controller_feedback_fault_active
+                0x08011522       0x2e ./Src/steering_controller_mssc.o
+                0x08011522                mssc_steering_controller_feedback_fault_active
  .text.mssc_steering_controller_last_feedback_ok_age_ms
-                0x08010a32       0x30 ./Src/steering_controller_mssc.o
-                0x08010a32                mssc_steering_controller_last_feedback_ok_age_ms
+                0x08011550       0x30 ./Src/steering_controller_mssc.o
+                0x08011550                mssc_steering_controller_last_feedback_ok_age_ms
  .text.mssc_steering_controller_invalidate_can_control_mode
-                0x08010a62       0x22 ./Src/steering_controller_mssc.o
-                0x08010a62                mssc_steering_controller_invalidate_can_control_mode
+                0x08011580       0x22 ./Src/steering_controller_mssc.o
+                0x08011580                mssc_steering_controller_invalidate_can_control_mode
+ *fill*         0x080115a2        0x2 
  .text.HAL_MspInit
-                0x08010a84       0x50 ./Src/stm32f4xx_hal_msp.o
-                0x08010a84                HAL_MspInit
+                0x080115a4       0x50 ./Src/stm32f4xx_hal_msp.o
+                0x080115a4                HAL_MspInit
  .text.HAL_ADC_MspInit
-                0x08010ad4       0x88 ./Src/stm32f4xx_hal_msp.o
-                0x08010ad4                HAL_ADC_MspInit
+                0x080115f4       0x88 ./Src/stm32f4xx_hal_msp.o
+                0x080115f4                HAL_ADC_MspInit
  .text.HAL_CAN_MspInit
-                0x08010b5c      0x160 ./Src/stm32f4xx_hal_msp.o
-                0x08010b5c                HAL_CAN_MspInit
+                0x0801167c      0x160 ./Src/stm32f4xx_hal_msp.o
+                0x0801167c                HAL_CAN_MspInit
  .text.HAL_UART_MspInit
-                0x08010cbc      0x108 ./Src/stm32f4xx_hal_msp.o
-                0x08010cbc                HAL_UART_MspInit
+                0x080117dc      0x108 ./Src/stm32f4xx_hal_msp.o
+                0x080117dc                HAL_UART_MspInit
  .text.NMI_Handler
-                0x08010dc4        0x8 ./Src/stm32f4xx_it.o
-                0x08010dc4                NMI_Handler
+                0x080118e4        0x8 ./Src/stm32f4xx_it.o
+                0x080118e4                NMI_Handler
  .text.HardFault_Handler
-                0x08010dcc        0x8 ./Src/stm32f4xx_it.o
-                0x08010dcc                HardFault_Handler
+                0x080118ec        0x8 ./Src/stm32f4xx_it.o
+                0x080118ec                HardFault_Handler
  .text.MemManage_Handler
-                0x08010dd4        0x8 ./Src/stm32f4xx_it.o
-                0x08010dd4                MemManage_Handler
+                0x080118f4        0x8 ./Src/stm32f4xx_it.o
+                0x080118f4                MemManage_Handler
  .text.BusFault_Handler
-                0x08010ddc        0x8 ./Src/stm32f4xx_it.o
-                0x08010ddc                BusFault_Handler
+                0x080118fc        0x8 ./Src/stm32f4xx_it.o
+                0x080118fc                BusFault_Handler
  .text.UsageFault_Handler
-                0x08010de4        0x8 ./Src/stm32f4xx_it.o
-                0x08010de4                UsageFault_Handler
+                0x08011904        0x8 ./Src/stm32f4xx_it.o
+                0x08011904                UsageFault_Handler
  .text.SVC_Handler
-                0x08010dec        0xe ./Src/stm32f4xx_it.o
-                0x08010dec                SVC_Handler
+                0x0801190c        0xe ./Src/stm32f4xx_it.o
+                0x0801190c                SVC_Handler
  .text.DebugMon_Handler
-                0x08010dfa        0xe ./Src/stm32f4xx_it.o
-                0x08010dfa                DebugMon_Handler
+                0x0801191a        0xe ./Src/stm32f4xx_it.o
+                0x0801191a                DebugMon_Handler
  .text.PendSV_Handler
-                0x08010e08        0xe ./Src/stm32f4xx_it.o
-                0x08010e08                PendSV_Handler
+                0x08011928        0xe ./Src/stm32f4xx_it.o
+                0x08011928                PendSV_Handler
  .text.SysTick_Handler
-                0x08010e16        0xc ./Src/stm32f4xx_it.o
-                0x08010e16                SysTick_Handler
- *fill*         0x08010e22        0x2 
+                0x08011936        0xc ./Src/stm32f4xx_it.o
+                0x08011936                SysTick_Handler
+ *fill*         0x08011942        0x2 
  .text.OTG_FS_IRQHandler
-                0x08010e24       0x14 ./Src/stm32f4xx_it.o
-                0x08010e24                OTG_FS_IRQHandler
+                0x08011944       0x14 ./Src/stm32f4xx_it.o
+                0x08011944                OTG_FS_IRQHandler
  .text.CAN1_RX0_IRQHandler
-                0x08010e38       0x14 ./Src/stm32f4xx_it.o
-                0x08010e38                CAN1_RX0_IRQHandler
+                0x08011958       0x14 ./Src/stm32f4xx_it.o
+                0x08011958                CAN1_RX0_IRQHandler
  .text.CAN2_RX0_IRQHandler
-                0x08010e4c       0x14 ./Src/stm32f4xx_it.o
-                0x08010e4c                CAN2_RX0_IRQHandler
+                0x0801196c       0x14 ./Src/stm32f4xx_it.o
+                0x0801196c                CAN2_RX0_IRQHandler
  .text.CAN1_SCE_IRQHandler
-                0x08010e60       0x14 ./Src/stm32f4xx_it.o
-                0x08010e60                CAN1_SCE_IRQHandler
+                0x08011980       0x14 ./Src/stm32f4xx_it.o
+                0x08011980                CAN1_SCE_IRQHandler
  .text.CAN2_SCE_IRQHandler
-                0x08010e74       0x14 ./Src/stm32f4xx_it.o
-                0x08010e74                CAN2_SCE_IRQHandler
+                0x08011994       0x14 ./Src/stm32f4xx_it.o
+                0x08011994                CAN2_SCE_IRQHandler
  .text.USART1_IRQHandler
-                0x08010e88       0x14 ./Src/stm32f4xx_it.o
-                0x08010e88                USART1_IRQHandler
- .text._sbrk    0x08010e9c       0x6c ./Src/sysmem.o
-                0x08010e9c                _sbrk
+                0x080119a8       0x14 ./Src/stm32f4xx_it.o
+                0x080119a8                USART1_IRQHandler
+ .text._sbrk    0x080119bc       0x6c ./Src/sysmem.o
+                0x080119bc                _sbrk
  .text.SystemInit
-                0x08010f08       0x24 ./Src/system_stm32f4xx.o
-                0x08010f08                SystemInit
+                0x08011a28       0x24 ./Src/system_stm32f4xx.o
+                0x08011a28                SystemInit
  .text.usb_cdc_shell_init
-                0x08010f2c       0x38 ./Src/usb_cdc_shell.o
-                0x08010f2c                usb_cdc_shell_init
+                0x08011a4c       0x38 ./Src/usb_cdc_shell.o
+                0x08011a4c                usb_cdc_shell_init
  .text.usb_cdc_shell_feed_bytes
-                0x08010f64       0xb0 ./Src/usb_cdc_shell.o
-                0x08010f64                usb_cdc_shell_feed_bytes
+                0x08011a84       0xb0 ./Src/usb_cdc_shell.o
+                0x08011a84                usb_cdc_shell_feed_bytes
  .text.usb_cdc_shell_get_line
-                0x08011014       0x68 ./Src/usb_cdc_shell.o
-                0x08011014                usb_cdc_shell_get_line
+                0x08011b34       0x68 ./Src/usb_cdc_shell.o
+                0x08011b34                usb_cdc_shell_get_line
  .text.usb_cdc_shell_write
-                0x0801107c       0x64 ./Src/usb_cdc_shell.o
-                0x0801107c                usb_cdc_shell_write
+                0x08011b9c       0x64 ./Src/usb_cdc_shell.o
+                0x08011b9c                usb_cdc_shell_write
  .text.MX_USB_DEVICE_Init
-                0x080110e0       0x60 ./Src/usb_device.o
-                0x080110e0                MX_USB_DEVICE_Init
+                0x08011c00       0x60 ./Src/usb_device.o
+                0x08011c00                MX_USB_DEVICE_Init
  .text.CDC_Init_FS
-                0x08011140       0x28 ./Src/usbd_cdc_if.o
+                0x08011c60       0x28 ./Src/usbd_cdc_if.o
  .text.CDC_DeInit_FS
-                0x08011168       0x10 ./Src/usbd_cdc_if.o
+                0x08011c88       0x10 ./Src/usbd_cdc_if.o
  .text.CDC_Control_FS
-                0x08011178       0xbc ./Src/usbd_cdc_if.o
+                0x08011c98       0xbc ./Src/usbd_cdc_if.o
  .text.CDC_Receive_FS
-                0x08011234       0x34 ./Src/usbd_cdc_if.o
+                0x08011d54       0x34 ./Src/usbd_cdc_if.o
  .text.CDC_Transmit_FS
-                0x08011268       0x54 ./Src/usbd_cdc_if.o
-                0x08011268                CDC_Transmit_FS
+                0x08011d88       0x54 ./Src/usbd_cdc_if.o
+                0x08011d88                CDC_Transmit_FS
  .text.CDC_TransmitCplt_FS
-                0x080112bc       0x22 ./Src/usbd_cdc_if.o
- *fill*         0x080112de        0x2 
+                0x08011ddc       0x22 ./Src/usbd_cdc_if.o
+ *fill*         0x08011dfe        0x2 
  .text.HAL_PCD_MspInit
-                0x080112e0       0xa8 ./Src/usbd_conf.o
-                0x080112e0                HAL_PCD_MspInit
+                0x08011e00       0xa8 ./Src/usbd_conf.o
+                0x08011e00                HAL_PCD_MspInit
  .text.HAL_PCD_SetupStageCallback
-                0x08011388       0x24 ./Src/usbd_conf.o
-                0x08011388                HAL_PCD_SetupStageCallback
+                0x08011ea8       0x24 ./Src/usbd_conf.o
+                0x08011ea8                HAL_PCD_SetupStageCallback
  .text.HAL_PCD_DataOutStageCallback
-                0x080113ac       0x36 ./Src/usbd_conf.o
-                0x080113ac                HAL_PCD_DataOutStageCallback
+                0x08011ecc       0x36 ./Src/usbd_conf.o
+                0x08011ecc                HAL_PCD_DataOutStageCallback
  .text.HAL_PCD_DataInStageCallback
-                0x080113e2       0x34 ./Src/usbd_conf.o
-                0x080113e2                HAL_PCD_DataInStageCallback
+                0x08011f02       0x34 ./Src/usbd_conf.o
+                0x08011f02                HAL_PCD_DataInStageCallback
  .text.HAL_PCD_SOFCallback
-                0x08011416       0x1c ./Src/usbd_conf.o
-                0x08011416                HAL_PCD_SOFCallback
+                0x08011f36       0x1c ./Src/usbd_conf.o
+                0x08011f36                HAL_PCD_SOFCallback
  .text.HAL_PCD_ResetCallback
-                0x08011432       0x50 ./Src/usbd_conf.o
-                0x08011432                HAL_PCD_ResetCallback
- *fill*         0x08011482        0x2 
+                0x08011f52       0x50 ./Src/usbd_conf.o
+                0x08011f52                HAL_PCD_ResetCallback
+ *fill*         0x08011fa2        0x2 
  .text.HAL_PCD_SuspendCallback
-                0x08011484       0x4c ./Src/usbd_conf.o
-                0x08011484                HAL_PCD_SuspendCallback
+                0x08011fa4       0x4c ./Src/usbd_conf.o
+                0x08011fa4                HAL_PCD_SuspendCallback
  .text.HAL_PCD_ResumeCallback
-                0x080114d0       0x1c ./Src/usbd_conf.o
-                0x080114d0                HAL_PCD_ResumeCallback
+                0x08011ff0       0x1c ./Src/usbd_conf.o
+                0x08011ff0                HAL_PCD_ResumeCallback
  .text.HAL_PCD_ISOOUTIncompleteCallback
-                0x080114ec       0x24 ./Src/usbd_conf.o
-                0x080114ec                HAL_PCD_ISOOUTIncompleteCallback
+                0x0801200c       0x24 ./Src/usbd_conf.o
+                0x0801200c                HAL_PCD_ISOOUTIncompleteCallback
  .text.HAL_PCD_ISOINIncompleteCallback
-                0x08011510       0x24 ./Src/usbd_conf.o
-                0x08011510                HAL_PCD_ISOINIncompleteCallback
+                0x08012030       0x24 ./Src/usbd_conf.o
+                0x08012030                HAL_PCD_ISOINIncompleteCallback
  .text.HAL_PCD_ConnectCallback
-                0x08011534       0x1c ./Src/usbd_conf.o
-                0x08011534                HAL_PCD_ConnectCallback
+                0x08012054       0x1c ./Src/usbd_conf.o
+                0x08012054                HAL_PCD_ConnectCallback
  .text.HAL_PCD_DisconnectCallback
-                0x08011550       0x1c ./Src/usbd_conf.o
-                0x08011550                HAL_PCD_DisconnectCallback
+                0x08012070       0x1c ./Src/usbd_conf.o
+                0x08012070                HAL_PCD_DisconnectCallback
  .text.USBD_LL_Init
-                0x0801156c       0x98 ./Src/usbd_conf.o
-                0x0801156c                USBD_LL_Init
+                0x0801208c       0x98 ./Src/usbd_conf.o
+                0x0801208c                USBD_LL_Init
  .text.USBD_LL_Start
-                0x08011604       0x36 ./Src/usbd_conf.o
-                0x08011604                USBD_LL_Start
+                0x08012124       0x36 ./Src/usbd_conf.o
+                0x08012124                USBD_LL_Start
  .text.USBD_LL_OpenEP
-                0x0801163a       0x4c ./Src/usbd_conf.o
-                0x0801163a                USBD_LL_OpenEP
+                0x0801215a       0x4c ./Src/usbd_conf.o
+                0x0801215a                USBD_LL_OpenEP
  .text.USBD_LL_CloseEP
-                0x08011686       0x3e ./Src/usbd_conf.o
-                0x08011686                USBD_LL_CloseEP
+                0x080121a6       0x3e ./Src/usbd_conf.o
+                0x080121a6                USBD_LL_CloseEP
  .text.USBD_LL_StallEP
-                0x080116c4       0x3e ./Src/usbd_conf.o
-                0x080116c4                USBD_LL_StallEP
+                0x080121e4       0x3e ./Src/usbd_conf.o
+                0x080121e4                USBD_LL_StallEP
  .text.USBD_LL_ClearStallEP
-                0x08011702       0x3e ./Src/usbd_conf.o
-                0x08011702                USBD_LL_ClearStallEP
+                0x08012222       0x3e ./Src/usbd_conf.o
+                0x08012222                USBD_LL_ClearStallEP
  .text.USBD_LL_IsStallEP
-                0x08011740       0x58 ./Src/usbd_conf.o
-                0x08011740                USBD_LL_IsStallEP
+                0x08012260       0x58 ./Src/usbd_conf.o
+                0x08012260                USBD_LL_IsStallEP
  .text.USBD_LL_SetUSBAddress
-                0x08011798       0x3e ./Src/usbd_conf.o
-                0x08011798                USBD_LL_SetUSBAddress
+                0x080122b8       0x3e ./Src/usbd_conf.o
+                0x080122b8                USBD_LL_SetUSBAddress
  .text.USBD_LL_Transmit
-                0x080117d6       0x42 ./Src/usbd_conf.o
-                0x080117d6                USBD_LL_Transmit
+                0x080122f6       0x42 ./Src/usbd_conf.o
+                0x080122f6                USBD_LL_Transmit
  .text.USBD_LL_PrepareReceive
-                0x08011818       0x42 ./Src/usbd_conf.o
-                0x08011818                USBD_LL_PrepareReceive
+                0x08012338       0x42 ./Src/usbd_conf.o
+                0x08012338                USBD_LL_PrepareReceive
  .text.USBD_LL_GetRxDataSize
-                0x0801185a       0x26 ./Src/usbd_conf.o
-                0x0801185a                USBD_LL_GetRxDataSize
+                0x0801237a       0x26 ./Src/usbd_conf.o
+                0x0801237a                USBD_LL_GetRxDataSize
  .text.USBD_static_malloc
-                0x08011880       0x1c ./Src/usbd_conf.o
-                0x08011880                USBD_static_malloc
+                0x080123a0       0x1c ./Src/usbd_conf.o
+                0x080123a0                USBD_static_malloc
  .text.USBD_static_free
-                0x0801189c       0x14 ./Src/usbd_conf.o
-                0x0801189c                USBD_static_free
+                0x080123bc       0x14 ./Src/usbd_conf.o
+                0x080123bc                USBD_static_free
  .text.USBD_Get_USB_Status
-                0x080118b0       0x58 ./Src/usbd_conf.o
-                0x080118b0                USBD_Get_USB_Status
+                0x080123d0       0x58 ./Src/usbd_conf.o
+                0x080123d0                USBD_Get_USB_Status
  .text.USBD_FS_DeviceDescriptor
-                0x08011908       0x24 ./Src/usbd_desc.o
-                0x08011908                USBD_FS_DeviceDescriptor
+                0x08012428       0x24 ./Src/usbd_desc.o
+                0x08012428                USBD_FS_DeviceDescriptor
  .text.USBD_FS_LangIDStrDescriptor
-                0x0801192c       0x24 ./Src/usbd_desc.o
-                0x0801192c                USBD_FS_LangIDStrDescriptor
+                0x0801244c       0x24 ./Src/usbd_desc.o
+                0x0801244c                USBD_FS_LangIDStrDescriptor
  .text.USBD_FS_ProductStrDescriptor
-                0x08011950       0x3c ./Src/usbd_desc.o
-                0x08011950                USBD_FS_ProductStrDescriptor
+                0x08012470       0x3c ./Src/usbd_desc.o
+                0x08012470                USBD_FS_ProductStrDescriptor
  .text.USBD_FS_ManufacturerStrDescriptor
-                0x0801198c       0x28 ./Src/usbd_desc.o
-                0x0801198c                USBD_FS_ManufacturerStrDescriptor
+                0x080124ac       0x28 ./Src/usbd_desc.o
+                0x080124ac                USBD_FS_ManufacturerStrDescriptor
  .text.USBD_FS_SerialStrDescriptor
-                0x080119b4       0x24 ./Src/usbd_desc.o
-                0x080119b4                USBD_FS_SerialStrDescriptor
+                0x080124d4       0x24 ./Src/usbd_desc.o
+                0x080124d4                USBD_FS_SerialStrDescriptor
  .text.USBD_FS_ConfigStrDescriptor
-                0x080119d8       0x3c ./Src/usbd_desc.o
-                0x080119d8                USBD_FS_ConfigStrDescriptor
+                0x080124f8       0x3c ./Src/usbd_desc.o
+                0x080124f8                USBD_FS_ConfigStrDescriptor
  .text.USBD_FS_InterfaceStrDescriptor
-                0x08011a14       0x3c ./Src/usbd_desc.o
-                0x08011a14                USBD_FS_InterfaceStrDescriptor
+                0x08012534       0x3c ./Src/usbd_desc.o
+                0x08012534                USBD_FS_InterfaceStrDescriptor
  .text.Get_SerialNum
-                0x08011a50       0x58 ./Src/usbd_desc.o
+                0x08012570       0x58 ./Src/usbd_desc.o
  .text.IntToUnicode
-                0x08011aa8       0x7e ./Src/usbd_desc.o
- *fill*         0x08011b26        0x2 
+                0x080125c8       0x7e ./Src/usbd_desc.o
+ *fill*         0x08012646        0x2 
  .text.ascii_stricmp
-                0x08011b28       0x98 ./Src/vehicle_config.o
+                0x08012648       0x98 ./Src/vehicle_config.o
  .text.vehicle_config_checksum_bytes
-                0x08011bc0       0x58 ./Src/vehicle_config.o
+                0x080126e0       0x58 ./Src/vehicle_config.o
  .text.vehicle_config_set_defaults
-                0x08011c18       0xe2 ./Src/vehicle_config.o
+                0x08012738       0xf0 ./Src/vehicle_config.o
  .text.vehicle_config_fix_u16_range
-                0x08011cfa       0x7c ./Src/vehicle_config.o
+                0x08012828       0x7c ./Src/vehicle_config.o
  .text.vehicle_config_fix_can_node_id
-                0x08011d76       0x38 ./Src/vehicle_config.o
+                0x080128a4       0x36 ./Src/vehicle_config.o
  .text.vehicle_config_fix_drive_max_rpm
-                0x08011dae       0x50 ./Src/vehicle_config.o
+                0x080128da       0x50 ./Src/vehicle_config.o
+ .text.vehicle_config_fix_steering_max_rpm
+                0x0801292a       0x50 ./Src/vehicle_config.o
+ .text.vehicle_config_swap_i32
+                0x0801297a       0x38 ./Src/vehicle_config.o
+ .text.vehicle_config_steering_uses_legacy_polarity
+                0x080129b2       0x58 ./Src/vehicle_config.o
+ .text.vehicle_config_migrate_steering_polarity
+                0x08012a0a       0x48 ./Src/vehicle_config.o
+ .text.vehicle_config_same_center_side
+                0x08012a52       0x5c ./Src/vehicle_config.o
+ .text.vehicle_config_fix_axis_limits
+                0x08012aae       0x94 ./Src/vehicle_config.o
  .text.vehicle_config_sanitize
-                0x08011dfe      0x104 ./Src/vehicle_config.o
- *fill*         0x08011f02        0x2 
+                0x08012b42      0x150 ./Src/vehicle_config.o
+ *fill*         0x08012c92        0x2 
  .text.vehicle_config_validate_image
-                0x08011f04       0x5c ./Src/vehicle_config.o
+                0x08012c94       0x5c ./Src/vehicle_config.o
+ .text.vehicle_config_validate_image_v6
+                0x08012cf0       0x5c ./Src/vehicle_config.o
+ .text.vehicle_config_validate_image_v5
+                0x08012d4c       0x5c ./Src/vehicle_config.o
+ .text.vehicle_config_validate_image_v4
+                0x08012da8       0x5c ./Src/vehicle_config.o
  .text.vehicle_config_validate_image_v3
-                0x08011f60       0x5c ./Src/vehicle_config.o
+                0x08012e04       0x5c ./Src/vehicle_config.o
+ .text.vehicle_config_import_v6
+                0x08012e60      0x112 ./Src/vehicle_config.o
+ .text.vehicle_config_import_v5
+                0x08012f72       0x1a ./Src/vehicle_config.o
+ .text.vehicle_config_import_v4
+                0x08012f8c      0x13c ./Src/vehicle_config.o
  .text.vehicle_config_import_v3
-                0x08011fbc      0x126 ./Src/vehicle_config.o
- *fill*         0x080120e2        0x2 
+                0x080130c8      0x13c ./Src/vehicle_config.o
  .text.vehicle_config_init
-                0x080120e4       0x24 ./Src/vehicle_config.o
-                0x080120e4                vehicle_config_init
+                0x08013204       0x24 ./Src/vehicle_config.o
+                0x08013204                vehicle_config_init
  .text.vehicle_config_get
-                0x08012108       0x14 ./Src/vehicle_config.o
-                0x08012108                vehicle_config_get
+                0x08013228       0x14 ./Src/vehicle_config.o
+                0x08013228                vehicle_config_get
  .text.vehicle_config_set
-                0x0801211c       0x34 ./Src/vehicle_config.o
-                0x0801211c                vehicle_config_set
+                0x0801323c       0x2c ./Src/vehicle_config.o
+                0x0801323c                vehicle_config_set
  .text.vehicle_config_save
-                0x08012150      0x144 ./Src/vehicle_config.o
-                0x08012150                vehicle_config_save
+                0x08013268      0x130 ./Src/vehicle_config.o
+                0x08013268                vehicle_config_save
  .text.vehicle_config_load
-                0x08012294       0x80 ./Src/vehicle_config.o
-                0x08012294                vehicle_config_load
+                0x08013398       0xe8 ./Src/vehicle_config.o
+                0x08013398                vehicle_config_load
  .text.vehicle_config_runtime_drive_mode
-                0x08012314       0x38 ./Src/vehicle_config.o
-                0x08012314                vehicle_config_runtime_drive_mode
+                0x08013480       0x38 ./Src/vehicle_config.o
+                0x08013480                vehicle_config_runtime_drive_mode
  .text.vehicle_config_drive_mode_name
-                0x0801234c       0x5c ./Src/vehicle_config.o
-                0x0801234c                vehicle_config_drive_mode_name
+                0x080134b8       0x5c ./Src/vehicle_config.o
+                0x080134b8                vehicle_config_drive_mode_name
  .text.vehicle_config_parse_drive_mode
-                0x080123a8       0xb8 ./Src/vehicle_config.o
-                0x080123a8                vehicle_config_parse_drive_mode
+                0x08013514       0x8c ./Src/vehicle_config.o
+                0x08013514                vehicle_config_parse_drive_mode
  .text.vehicle_config_chassis_type_name
-                0x08012460       0x38 ./Src/vehicle_config.o
-                0x08012460                vehicle_config_chassis_type_name
+                0x080135a0       0x38 ./Src/vehicle_config.o
+                0x080135a0                vehicle_config_chassis_type_name
  .text.vehicle_config_parse_chassis_type
-                0x08012498       0x94 ./Src/vehicle_config.o
-                0x08012498                vehicle_config_parse_chassis_type
+                0x080135d8       0x94 ./Src/vehicle_config.o
+                0x080135d8                vehicle_config_parse_chassis_type
  .text.vehicle_config_drive_axle_name
-                0x0801252c       0x38 ./Src/vehicle_config.o
-                0x0801252c                vehicle_config_drive_axle_name
+                0x0801366c       0x38 ./Src/vehicle_config.o
+                0x0801366c                vehicle_config_drive_axle_name
  .text.vehicle_config_parse_drive_axle
-                0x08012564       0x80 ./Src/vehicle_config.o
-                0x08012564                vehicle_config_parse_drive_axle
+                0x080136a4       0x80 ./Src/vehicle_config.o
+                0x080136a4                vehicle_config_parse_drive_axle
  .text.vehicle_config_pedal_config_name
-                0x080125e4       0x38 ./Src/vehicle_config.o
-                0x080125e4                vehicle_config_pedal_config_name
+                0x08013724       0x38 ./Src/vehicle_config.o
+                0x08013724                vehicle_config_pedal_config_name
  .text.vehicle_config_parse_pedal_config
-                0x0801261c       0x80 ./Src/vehicle_config.o
-                0x0801261c                vehicle_config_parse_pedal_config
+                0x0801375c       0x80 ./Src/vehicle_config.o
+                0x0801375c                vehicle_config_parse_pedal_config
  .text.vehicle_config_drive_controller_name
-                0x0801269c       0x2c ./Src/vehicle_config.o
-                0x0801269c                vehicle_config_drive_controller_name
+                0x080137dc       0x2c ./Src/vehicle_config.o
+                0x080137dc                vehicle_config_drive_controller_name
  .text.vehicle_config_steering_controller_name
-                0x080126c8       0x2c ./Src/vehicle_config.o
-                0x080126c8                vehicle_config_steering_controller_name
+                0x08013808       0x2c ./Src/vehicle_config.o
+                0x08013808                vehicle_config_steering_controller_name
  .text.Reset_Handler
-                0x080126f4       0x50 ./Startup/startup_stm32f407zgtx.o
-                0x080126f4                Reset_Handler
+                0x08013834       0x50 ./Startup/startup_stm32f407zgtx.o
+                0x08013834                Reset_Handler
  .text.Default_Handler
-                0x08012744        0x2 ./Startup/startup_stm32f407zgtx.o
-                0x08012744                RTC_Alarm_IRQHandler
-                0x08012744                HASH_RNG_IRQHandler
-                0x08012744                EXTI2_IRQHandler
-                0x08012744                TIM8_CC_IRQHandler
-                0x08012744                TIM1_CC_IRQHandler
-                0x08012744                DMA2_Stream5_IRQHandler
-                0x08012744                DMA1_Stream5_IRQHandler
-                0x08012744                PVD_IRQHandler
-                0x08012744                SDIO_IRQHandler
-                0x08012744                TAMP_STAMP_IRQHandler
-                0x08012744                CAN2_RX1_IRQHandler
-                0x08012744                EXTI3_IRQHandler
-                0x08012744                TIM8_TRG_COM_TIM14_IRQHandler
-                0x08012744                TIM1_UP_TIM10_IRQHandler
-                0x08012744                TIM8_UP_TIM13_IRQHandler
-                0x08012744                I2C3_ER_IRQHandler
-                0x08012744                EXTI0_IRQHandler
-                0x08012744                I2C2_EV_IRQHandler
-                0x08012744                DMA1_Stream2_IRQHandler
-                0x08012744                FPU_IRQHandler
-                0x08012744                OTG_HS_WKUP_IRQHandler
-                0x08012744                DMA2_Stream2_IRQHandler
-                0x08012744                SPI1_IRQHandler
-                0x08012744                TIM6_DAC_IRQHandler
-                0x08012744                TIM1_BRK_TIM9_IRQHandler
-                0x08012744                DCMI_IRQHandler
-                0x08012744                DMA2_Stream3_IRQHandler
-                0x08012744                USART6_IRQHandler
-                0x08012744                USART3_IRQHandler
-                0x08012744                CAN1_RX1_IRQHandler
-                0x08012744                UART5_IRQHandler
-                0x08012744                DMA2_Stream0_IRQHandler
-                0x08012744                TIM4_IRQHandler
-                0x08012744                I2C1_EV_IRQHandler
-                0x08012744                DMA1_Stream6_IRQHandler
-                0x08012744                DMA1_Stream1_IRQHandler
-                0x08012744                UART4_IRQHandler
-                0x08012744                TIM3_IRQHandler
-                0x08012744                RCC_IRQHandler
-                0x08012744                TIM8_BRK_TIM12_IRQHandler
-                0x08012744                Default_Handler
-                0x08012744                EXTI15_10_IRQHandler
-                0x08012744                ADC_IRQHandler
-                0x08012744                DMA1_Stream7_IRQHandler
-                0x08012744                TIM7_IRQHandler
-                0x08012744                CAN2_TX_IRQHandler
-                0x08012744                TIM5_IRQHandler
-                0x08012744                DMA2_Stream7_IRQHandler
-                0x08012744                I2C3_EV_IRQHandler
-                0x08012744                EXTI9_5_IRQHandler
-                0x08012744                RTC_WKUP_IRQHandler
-                0x08012744                ETH_WKUP_IRQHandler
-                0x08012744                SPI2_IRQHandler
-                0x08012744                OTG_HS_EP1_IN_IRQHandler
-                0x08012744                DMA1_Stream0_IRQHandler
-                0x08012744                CAN1_TX_IRQHandler
-                0x08012744                EXTI4_IRQHandler
-                0x08012744                FSMC_IRQHandler
-                0x08012744                ETH_IRQHandler
-                0x08012744                OTG_HS_EP1_OUT_IRQHandler
-                0x08012744                WWDG_IRQHandler
-                0x08012744                TIM2_IRQHandler
-                0x08012744                OTG_FS_WKUP_IRQHandler
-                0x08012744                TIM1_TRG_COM_TIM11_IRQHandler
-                0x08012744                OTG_HS_IRQHandler
-                0x08012744                EXTI1_IRQHandler
-                0x08012744                USART2_IRQHandler
-                0x08012744                I2C2_ER_IRQHandler
-                0x08012744                DMA2_Stream1_IRQHandler
-                0x08012744                FLASH_IRQHandler
-                0x08012744                DMA2_Stream4_IRQHandler
-                0x08012744                SPI3_IRQHandler
-                0x08012744                DMA1_Stream4_IRQHandler
-                0x08012744                I2C1_ER_IRQHandler
-                0x08012744                DMA2_Stream6_IRQHandler
-                0x08012744                DMA1_Stream3_IRQHandler
- *fill*         0x08012746        0x2 
+                0x08013884        0x2 ./Startup/startup_stm32f407zgtx.o
+                0x08013884                RTC_Alarm_IRQHandler
+                0x08013884                HASH_RNG_IRQHandler
+                0x08013884                EXTI2_IRQHandler
+                0x08013884                TIM8_CC_IRQHandler
+                0x08013884                TIM1_CC_IRQHandler
+                0x08013884                DMA2_Stream5_IRQHandler
+                0x08013884                DMA1_Stream5_IRQHandler
+                0x08013884                PVD_IRQHandler
+                0x08013884                SDIO_IRQHandler
+                0x08013884                TAMP_STAMP_IRQHandler
+                0x08013884                CAN2_RX1_IRQHandler
+                0x08013884                EXTI3_IRQHandler
+                0x08013884                TIM8_TRG_COM_TIM14_IRQHandler
+                0x08013884                TIM1_UP_TIM10_IRQHandler
+                0x08013884                TIM8_UP_TIM13_IRQHandler
+                0x08013884                I2C3_ER_IRQHandler
+                0x08013884                EXTI0_IRQHandler
+                0x08013884                I2C2_EV_IRQHandler
+                0x08013884                DMA1_Stream2_IRQHandler
+                0x08013884                FPU_IRQHandler
+                0x08013884                OTG_HS_WKUP_IRQHandler
+                0x08013884                DMA2_Stream2_IRQHandler
+                0x08013884                SPI1_IRQHandler
+                0x08013884                TIM6_DAC_IRQHandler
+                0x08013884                TIM1_BRK_TIM9_IRQHandler
+                0x08013884                DCMI_IRQHandler
+                0x08013884                DMA2_Stream3_IRQHandler
+                0x08013884                USART6_IRQHandler
+                0x08013884                USART3_IRQHandler
+                0x08013884                CAN1_RX1_IRQHandler
+                0x08013884                UART5_IRQHandler
+                0x08013884                DMA2_Stream0_IRQHandler
+                0x08013884                TIM4_IRQHandler
+                0x08013884                I2C1_EV_IRQHandler
+                0x08013884                DMA1_Stream6_IRQHandler
+                0x08013884                DMA1_Stream1_IRQHandler
+                0x08013884                UART4_IRQHandler
+                0x08013884                TIM3_IRQHandler
+                0x08013884                RCC_IRQHandler
+                0x08013884                TIM8_BRK_TIM12_IRQHandler
+                0x08013884                Default_Handler
+                0x08013884                EXTI15_10_IRQHandler
+                0x08013884                ADC_IRQHandler
+                0x08013884                DMA1_Stream7_IRQHandler
+                0x08013884                TIM7_IRQHandler
+                0x08013884                CAN2_TX_IRQHandler
+                0x08013884                TIM5_IRQHandler
+                0x08013884                DMA2_Stream7_IRQHandler
+                0x08013884                I2C3_EV_IRQHandler
+                0x08013884                EXTI9_5_IRQHandler
+                0x08013884                RTC_WKUP_IRQHandler
+                0x08013884                ETH_WKUP_IRQHandler
+                0x08013884                SPI2_IRQHandler
+                0x08013884                OTG_HS_EP1_IN_IRQHandler
+                0x08013884                DMA1_Stream0_IRQHandler
+                0x08013884                CAN1_TX_IRQHandler
+                0x08013884                EXTI4_IRQHandler
+                0x08013884                FSMC_IRQHandler
+                0x08013884                ETH_IRQHandler
+                0x08013884                OTG_HS_EP1_OUT_IRQHandler
+                0x08013884                WWDG_IRQHandler
+                0x08013884                TIM2_IRQHandler
+                0x08013884                OTG_FS_WKUP_IRQHandler
+                0x08013884                TIM1_TRG_COM_TIM11_IRQHandler
+                0x08013884                OTG_HS_IRQHandler
+                0x08013884                EXTI1_IRQHandler
+                0x08013884                USART2_IRQHandler
+                0x08013884                I2C2_ER_IRQHandler
+                0x08013884                DMA2_Stream1_IRQHandler
+                0x08013884                FLASH_IRQHandler
+                0x08013884                DMA2_Stream4_IRQHandler
+                0x08013884                SPI3_IRQHandler
+                0x08013884                DMA1_Stream4_IRQHandler
+                0x08013884                I2C1_ER_IRQHandler
+                0x08013884                DMA2_Stream6_IRQHandler
+                0x08013884                DMA1_Stream3_IRQHandler
+ *fill*         0x08013886        0x2 
  .text._strtol_l.isra.0
-                0x08012748       0xf4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtol.o)
- .text.strtol   0x0801283c       0x14 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtol.o)
-                0x0801283c                strtol
+                0x08013888       0xf4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtol.o)
+ .text.strtol   0x0801397c       0x14 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtol.o)
+                0x0801397c                strtol
  .text._strtoul_l.isra.0
-                0x08012850       0xdc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtoul.o)
- .text.strtoul  0x0801292c       0x14 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtoul.o)
-                0x0801292c                strtoul
+                0x08013990       0xdc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtoul.o)
+ .text.strtoul  0x08013a6c       0x14 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtoul.o)
+                0x08013a6c                strtoul
  .text.snprintf
-                0x08012940       0x6c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-snprintf.o)
-                0x08012940                sniprintf
-                0x08012940                snprintf
+                0x08013a80       0x6c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-snprintf.o)
+                0x08013a80                sniprintf
+                0x08013a80                snprintf
  .text._vsnprintf_r
-                0x080129ac       0x5c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-vsnprintf.o)
-                0x080129ac                _vsniprintf_r
-                0x080129ac                _vsnprintf_r
+                0x08013aec       0x5c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-vsnprintf.o)
+                0x08013aec                _vsniprintf_r
+                0x08013aec                _vsnprintf_r
  .text.vsnprintf
-                0x08012a08       0x1c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-vsnprintf.o)
-                0x08012a08                vsniprintf
-                0x08012a08                vsnprintf
- .text.memmove  0x08012a24       0x32 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memmove.o)
-                0x08012a24                memmove
- .text.memset   0x08012a56       0x10 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memset.o)
-                0x08012a56                memset
- .text.strchr   0x08012a66       0x1a C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strchr.o)
-                0x08012a66                strchr
- .text.strncmp  0x08012a80       0x24 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strncmp.o)
-                0x08012a80                strncmp
- .text.strstr   0x08012aa4       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strstr.o)
-                0x08012aa4                strstr
- .text.__errno  0x08012ad0        0xc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-errno.o)
-                0x08012ad0                __errno
+                0x08013b48       0x1c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-vsnprintf.o)
+                0x08013b48                vsniprintf
+                0x08013b48                vsnprintf
+ .text.memmove  0x08013b64       0x32 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memmove.o)
+                0x08013b64                memmove
+ .text.memset   0x08013b96       0x10 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memset.o)
+                0x08013b96                memset
+ .text.strchr   0x08013ba6       0x1a C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strchr.o)
+                0x08013ba6                strchr
+ .text.strncmp  0x08013bc0       0x24 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strncmp.o)
+                0x08013bc0                strncmp
+ .text.strstr   0x08013be4       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strstr.o)
+                0x08013be4                strstr
+ .text.__errno  0x08013c10        0xc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-errno.o)
+                0x08013c10                __errno
  .text.__libc_init_array
-                0x08012adc       0x48 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-init.o)
-                0x08012adc                __libc_init_array
+                0x08013c1c       0x48 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-init.o)
+                0x08013c1c                __libc_init_array
  .text.__retarget_lock_acquire_recursive
-                0x08012b24        0x2 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-lock.o)
-                0x08012b24                __retarget_lock_acquire_recursive
+                0x08013c64        0x2 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-lock.o)
+                0x08013c64                __retarget_lock_acquire_recursive
  .text.__retarget_lock_release_recursive
-                0x08012b26        0x2 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-lock.o)
-                0x08012b26                __retarget_lock_release_recursive
- .text.memcpy   0x08012b28       0x1c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memcpy-stub.o)
-                0x08012b28                memcpy
- .text._free_r  0x08012b44       0x94 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-freer.o)
-                0x08012b44                _free_r
+                0x08013c66        0x2 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-lock.o)
+                0x08013c66                __retarget_lock_release_recursive
+ .text.memcpy   0x08013c68       0x1c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memcpy-stub.o)
+                0x08013c68                memcpy
+ .text._free_r  0x08013c84       0x94 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-freer.o)
+                0x08013c84                _free_r
  .text.sbrk_aligned
-                0x08012bd8       0x44 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mallocr.o)
+                0x08013d18       0x44 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mallocr.o)
  .text._malloc_r
-                0x08012c1c      0x100 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mallocr.o)
-                0x08012c1c                _malloc_r
+                0x08013d5c      0x100 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mallocr.o)
+                0x08013d5c                _malloc_r
  .text.__malloc_lock
-                0x08012d1c        0xc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mlock.o)
-                0x08012d1c                __malloc_lock
+                0x08013e5c        0xc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mlock.o)
+                0x08013e5c                __malloc_lock
  .text.__malloc_unlock
-                0x08012d28        0xc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mlock.o)
-                0x08012d28                __malloc_unlock
+                0x08013e68        0xc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mlock.o)
+                0x08013e68                __malloc_unlock
  .text.__ssputs_r
-                0x08012d34       0xc0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-svfprintf.o)
-                0x08012d34                __ssputs_r
+                0x08013e74       0xc0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-svfprintf.o)
+                0x08013e74                __ssputs_r
  .text._svfprintf_r
-                0x08012df4      0x1f8 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-svfprintf.o)
-                0x08012df4                _svfiprintf_r
-                0x08012df4                _svfprintf_r
+                0x08013f34      0x1f8 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-svfprintf.o)
+                0x08013f34                _svfiprintf_r
+                0x08013f34                _svfprintf_r
  .text._printf_common
-                0x08012fec       0xda C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-vfprintf_i.o)
-                0x08012fec                _printf_common
- *fill*         0x080130c6        0x2 
+                0x0801412c       0xda C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-vfprintf_i.o)
+                0x0801412c                _printf_common
+ *fill*         0x08014206        0x2 
  .text._printf_i
-                0x080130c8      0x240 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-vfprintf_i.o)
-                0x080130c8                _printf_i
- .text._sbrk_r  0x08013308       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-sbrkr.o)
-                0x08013308                _sbrk_r
+                0x08014208      0x240 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-vfprintf_i.o)
+                0x08014208                _printf_i
+ .text._sbrk_r  0x08014448       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-sbrkr.o)
+                0x08014448                _sbrk_r
  .text._realloc_r
-                0x08013328       0x5c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-reallocr.o)
-                0x08013328                _realloc_r
+                0x08014468       0x5c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-reallocr.o)
+                0x08014468                _realloc_r
  .text._malloc_usable_size_r
-                0x08013384       0x10 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-msizer.o)
-                0x08013384                _malloc_usable_size_r
- .text.tanf     0x08013394       0x54 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_tan.o)
-                0x08013394                tanf
+                0x080144c4       0x10 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-msizer.o)
+                0x080144c4                _malloc_usable_size_r
+ .text.tanf     0x080144d4       0x54 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_tan.o)
+                0x080144d4                tanf
  .text.__kernel_tanf
-                0x080133e8      0x1bc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_tan.o)
-                0x080133e8                __kernel_tanf
+                0x08014528      0x1bc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_tan.o)
+                0x08014528                __kernel_tanf
  .text.__ieee754_rem_pio2f
-                0x080135a4      0x26c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-ef_rem_pio2.o)
-                0x080135a4                __ieee754_rem_pio2f
- .text.fabsf    0x08013810       0x10 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_fabs.o)
-                0x08013810                fabsf
+                0x080146e4      0x26c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-ef_rem_pio2.o)
+                0x080146e4                __ieee754_rem_pio2f
+ .text.fabsf    0x08014950       0x10 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_fabs.o)
+                0x08014950                fabsf
  .text.__kernel_rem_pio2f
-                0x08013820      0x68c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_rem_pio2.o)
-                0x08013820                __kernel_rem_pio2f
- .text.scalbnf  0x08013eac       0xdc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_scalbn.o)
-                0x08013eac                scalbnf
- .text.floorf   0x08013f88       0x94 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_floor.o)
-                0x08013f88                floorf
+                0x08014960      0x68c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_rem_pio2.o)
+                0x08014960                __kernel_rem_pio2f
+ .text.scalbnf  0x08014fec       0xdc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_scalbn.o)
+                0x08014fec                scalbnf
+ .text.floorf   0x080150c8       0x94 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_floor.o)
+                0x080150c8                floorf
  .text.__udivmoddi4
-                0x0801401c      0x2f8 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libgcc.a(_udivmoddi4.o)
-                0x0801401c                __udivmoddi4
+                0x0801515c      0x2f8 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libgcc.a(_udivmoddi4.o)
+                0x0801515c                __udivmoddi4
  *(.glue_7)
- .glue_7        0x08014314        0x0 linker stubs
+ .glue_7        0x08015454        0x0 linker stubs
  *(.glue_7t)
- .glue_7t       0x08014314        0x0 linker stubs
+ .glue_7t       0x08015454        0x0 linker stubs
  *(.eh_frame)
- .eh_frame      0x08014314        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
+ .eh_frame      0x08015454        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
  *(.init)
- .init          0x08014314        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crti.o
-                0x08014314                _init
- .init          0x08014318        0x8 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtn.o
+ .init          0x08015454        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crti.o
+                0x08015454                _init
+ .init          0x08015458        0x8 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtn.o
  *(.fini)
- .fini          0x08014320        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crti.o
-                0x08014320                _fini
- .fini          0x08014324        0x8 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtn.o
-                0x0801432c                        . = ALIGN (0x4)
-                0x0801432c                        _etext = .
+ .fini          0x08015460        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crti.o
+                0x08015460                _fini
+ .fini          0x08015464        0x8 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtn.o
+                0x0801546c                        . = ALIGN (0x4)
+                0x0801546c                        _etext = .
 
-.vfp11_veneer   0x0801432c        0x0
- .vfp11_veneer  0x0801432c        0x0 linker stubs
+.vfp11_veneer   0x0801546c        0x0
+ .vfp11_veneer  0x0801546c        0x0 linker stubs
 
-.v4_bx          0x0801432c        0x0
- .v4_bx         0x0801432c        0x0 linker stubs
+.v4_bx          0x0801546c        0x0
+ .v4_bx         0x0801546c        0x0 linker stubs
 
-.iplt           0x0801432c        0x0
- .iplt          0x0801432c        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
+.iplt           0x0801546c        0x0
+ .iplt          0x0801546c        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
 
-.rodata         0x0801432c     0x2508
-                0x0801432c                        . = ALIGN (0x4)
+.rodata         0x0801546c     0x2770
+                0x0801546c                        . = ALIGN (0x4)
  *(.rodata)
- .rodata        0x0801432c        0x6 ./Src/board_io.o
- *fill*         0x08014332        0x2 
- .rodata        0x08014334     0x1ceb ./Src/chassis_app.o
- *fill*         0x0801601f        0x1 
- .rodata        0x08016020      0x1de ./Src/ewm22_link.o
- *fill*         0x080161fe        0x2 
- .rodata        0x08016200       0x46 ./Src/usbd_desc.o
- *fill*         0x08016246        0x2 
- .rodata        0x08016248       0xb1 ./Src/vehicle_config.o
+ .rodata        0x0801546c        0x6 ./Src/board_io.o
+ *fill*         0x08015472        0x2 
+ .rodata        0x08015474     0x1f33 ./Src/chassis_app.o
+ *fill*         0x080173a7        0x1 
+ .rodata        0x080173a8      0x202 ./Src/ewm22_link.o
+ *fill*         0x080175aa        0x2 
+ .rodata        0x080175ac       0x46 ./Src/usbd_desc.o
+ *fill*         0x080175f2        0x2 
+ .rodata        0x080175f4       0xad ./Src/vehicle_config.o
  *(.rodata*)
- *fill*         0x080162f9        0x3 
+ *fill*         0x080176a1        0x3 
  .rodata.regs.1
-                0x080162fc        0x8 ./Src/drive_controller_mssd.o
+                0x080176a4        0x8 ./Src/drive_controller_mssd.o
  .rodata.regs.0
-                0x08016304        0x8 ./Src/drive_controller_mssd.o
+                0x080176ac        0x8 ./Src/drive_controller_mssd.o
  .rodata.regs.1
-                0x0801630c        0x4 ./Src/steering_controller_mssc.o
+                0x080176b4        0x4 ./Src/steering_controller_mssc.o
  .rodata.regs.0
-                0x08016310        0x8 ./Src/steering_controller_mssc.o
+                0x080176b8        0x8 ./Src/steering_controller_mssc.o
  .rodata.AHBPrescTable
-                0x08016318       0x10 ./Src/system_stm32f4xx.o
-                0x08016318                AHBPrescTable
+                0x080176c0       0x10 ./Src/system_stm32f4xx.o
+                0x080176c0                AHBPrescTable
  .rodata.APBPrescTable
-                0x08016328        0x8 ./Src/system_stm32f4xx.o
-                0x08016328                APBPrescTable
+                0x080176d0        0x8 ./Src/system_stm32f4xx.o
+                0x080176d0                APBPrescTable
  .rodata._ctype_
-                0x08016330      0x101 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-ctype_.o)
-                0x08016330                _ctype_
+                0x080176d8      0x101 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-ctype_.o)
+                0x080176d8                _ctype_
  .rodata._svfprintf_r.str1.1
-                0x08016431       0x33 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-svfprintf.o)
+                0x080177d9       0x33 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-svfprintf.o)
                                  0x11 (size before relaxing)
  .rodata._printf_i.str1.1
-                0x08016464       0x22 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-vfprintf_i.o)
+                0x0801780c       0x22 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-vfprintf_i.o)
  .rodata.npio2_hw
-                0x08016464       0x80 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-ef_rem_pio2.o)
+                0x0801780c       0x80 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-ef_rem_pio2.o)
  .rodata.two_over_pi
-                0x080164e4      0x318 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-ef_rem_pio2.o)
- .rodata.PIo2   0x080167fc       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_rem_pio2.o)
+                0x0801788c      0x318 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-ef_rem_pio2.o)
+ .rodata.PIo2   0x08017ba4       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_rem_pio2.o)
  .rodata.init_jk
-                0x08016828        0xc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_rem_pio2.o)
-                0x08016834                        . = ALIGN (0x4)
+                0x08017bd0        0xc C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_rem_pio2.o)
+                0x08017bdc                        . = ALIGN (0x4)
 
-.ARM.extab      0x08016834        0x0
-                0x08016834                        . = ALIGN (0x4)
+.ARM.extab      0x08017bdc        0x0
+                0x08017bdc                        . = ALIGN (0x4)
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x08016834                        . = ALIGN (0x4)
+                0x08017bdc                        . = ALIGN (0x4)
 
-.ARM            0x08016834        0x8
-                0x08016834                        . = ALIGN (0x4)
-                0x08016834                        __exidx_start = .
+.ARM            0x08017bdc        0x8
+                0x08017bdc                        . = ALIGN (0x4)
+                0x08017bdc                        __exidx_start = .
  *(.ARM.exidx*)
- .ARM.exidx     0x08016834        0x8 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strlen.o)
- .ARM.exidx     0x0801683c        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memchr.o)
+ .ARM.exidx     0x08017bdc        0x8 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strlen.o)
+ .ARM.exidx     0x08017be4        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memchr.o)
                                   0x8 (size before relaxing)
  .ARM.exidx.text.__udivmoddi4
-                0x0801683c        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libgcc.a(_udivmoddi4.o)
+                0x08017be4        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libgcc.a(_udivmoddi4.o)
                                   0x8 (size before relaxing)
-                0x0801683c                        __exidx_end = .
-                0x0801683c                        . = ALIGN (0x4)
+                0x08017be4                        __exidx_end = .
+                0x08017be4                        . = ALIGN (0x4)
 
-.preinit_array  0x0801683c        0x0
-                0x0801683c                        . = ALIGN (0x4)
-                0x0801683c                        PROVIDE (__preinit_array_start = .)
+.preinit_array  0x08017be4        0x0
+                0x08017be4                        . = ALIGN (0x4)
+                0x08017be4                        PROVIDE (__preinit_array_start = .)
  *(.preinit_array*)
-                0x0801683c                        PROVIDE (__preinit_array_end = .)
-                0x0801683c                        . = ALIGN (0x4)
+                0x08017be4                        PROVIDE (__preinit_array_end = .)
+                0x08017be4                        . = ALIGN (0x4)
 
-.init_array     0x0801683c        0x4
-                0x0801683c                        . = ALIGN (0x4)
-                0x0801683c                        PROVIDE (__init_array_start = .)
+.init_array     0x08017be4        0x4
+                0x08017be4                        . = ALIGN (0x4)
+                0x08017be4                        PROVIDE (__init_array_start = .)
  *(SORT_BY_NAME(.init_array.*))
  *(.init_array*)
- .init_array    0x0801683c        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
-                0x08016840                        PROVIDE (__init_array_end = .)
-                0x08016840                        . = ALIGN (0x4)
+ .init_array    0x08017be4        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
+                0x08017be8                        PROVIDE (__init_array_end = .)
+                0x08017be8                        . = ALIGN (0x4)
 
-.fini_array     0x08016840        0x4
-                0x08016840                        . = ALIGN (0x4)
+.fini_array     0x08017be8        0x4
+                0x08017be8                        . = ALIGN (0x4)
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array*)
- .fini_array    0x08016840        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
+ .fini_array    0x08017be8        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
                 [!provide]                        PROVIDE (__fini_array_end = .)
-                0x08016844                        . = ALIGN (0x4)
-                0x08016844                        _sidata = LOADADDR (.data)
+                0x08017bec                        . = ALIGN (0x4)
+                0x08017bec                        _sidata = LOADADDR (.data)
 
-.rel.dyn        0x08016844        0x0
- .rel.iplt      0x08016844        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
+.rel.dyn        0x08017bec        0x0
+ .rel.iplt      0x08017bec        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
 
-.data           0x20000000      0x16c load address 0x08016844
+.data           0x20000000      0x16c load address 0x08017bec
                 0x20000000                        . = ALIGN (0x4)
                 0x20000000                        _sdata = .
  *(.data)
@@ -7269,19 +7322,19 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  *(.RamFunc*)
                 0x2000016c                        . = ALIGN (0x4)
                 0x2000016c                        _edata = .
-                0x080169b0                        _siccmram = LOADADDR (.ccmram)
+                0x08017d58                        _siccmram = LOADADDR (.ccmram)
 
 .tm_clone_table
-                0x2000016c        0x0 load address 0x080169b0
+                0x2000016c        0x0 load address 0x08017d58
  .tm_clone_table
                 0x2000016c        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
  .tm_clone_table
                 0x2000016c        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtend.o
 
-.igot.plt       0x2000016c        0x0 load address 0x080169b0
+.igot.plt       0x2000016c        0x0 load address 0x08017d58
  .igot.plt      0x2000016c        0x0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/crtbegin.o
 
-.ccmram         0x10000000        0x0 load address 0x080169b0
+.ccmram         0x10000000        0x0 load address 0x08017d58
                 0x10000000                        . = ALIGN (0x4)
                 0x10000000                        _sccmram = .
  *(.ccmram)
@@ -7290,7 +7343,7 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
                 0x10000000                        _eccmram = .
                 0x10000000                        . = ALIGN (0x4)
 
-.bss            0x2000016c     0x5b54
+.bss            0x2000016c     0x5f80
                 0x2000016c                        _sbss = .
                 0x2000016c                        __bss_start__ = _sbss
  *(.bss)
@@ -7313,139 +7366,142 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  .bss.s_drive_controller
                 0x20000d58       0x40 ./Src/chassis_app.o
  .bss.s_steer_controller
-                0x20000d98       0x30 ./Src/chassis_app.o
+                0x20000d98       0x34 ./Src/chassis_app.o
  .bss.s_handwheel_controller
-                0x20000dc8       0x30 ./Src/chassis_app.o
+                0x20000dcc       0x34 ./Src/chassis_app.o
  .bss.s_drive_can_handle
-                0x20000df8        0x4 ./Src/chassis_app.o
+                0x20000e00        0x4 ./Src/chassis_app.o
  .bss.s_steer_can_handle
-                0x20000dfc        0x4 ./Src/chassis_app.o
+                0x20000e04        0x4 ./Src/chassis_app.o
  .bss.s_drive_can_ready
-                0x20000e00        0x1 ./Src/chassis_app.o
+                0x20000e08        0x1 ./Src/chassis_app.o
  .bss.s_steer_can_ready
-                0x20000e01        0x1 ./Src/chassis_app.o
+                0x20000e09        0x1 ./Src/chassis_app.o
  .bss.s_reply_to_remote
-                0x20000e02        0x1 ./Src/chassis_app.o
- *fill*         0x20000e03        0x1 
+                0x20000e0a        0x1 ./Src/chassis_app.o
+ *fill*         0x20000e0b        0x1 
+ .bss.s_last_can_start_retry_tick_ms
+                0x20000e0c        0x4 ./Src/chassis_app.o
  .bss.s_control_state
-                0x20000e04       0x4c ./Src/chassis_app.o
+                0x20000e10       0x54 ./Src/chassis_app.o
  .bss.s_telemetry_state
-                0x20000e50        0x8 ./Src/chassis_app.o
+                0x20000e64        0x8 ./Src/chassis_app.o
  .bss.s_fault_state
-                0x20000e58        0x7 ./Src/chassis_app.o
- *fill*         0x20000e5f        0x1 
+                0x20000e6c        0x7 ./Src/chassis_app.o
+ *fill*         0x20000e73        0x1 
  .bss.s_calibration_runtime
-                0x20000e60       0x14 ./Src/chassis_app.o
+                0x20000e74       0x14 ./Src/chassis_app.o
  .bss.s_left_pedal_samples
-                0x20000e74       0x10 ./Src/chassis_app.o
+                0x20000e88       0x10 ./Src/chassis_app.o
  .bss.s_right_pedal_samples
-                0x20000e84       0x10 ./Src/chassis_app.o
+                0x20000e98       0x10 ./Src/chassis_app.o
  .bss.s_drive_test_start_tick_ms
-                0x20000e94        0x4 ./Src/chassis_app.o
+                0x20000ea8        0x4 ./Src/chassis_app.o
  .bss.s_drive_test_duration_ms
-                0x20000e98        0x4 ./Src/chassis_app.o
+                0x20000eac        0x4 ./Src/chassis_app.o
  .bss.s_steer_test_start_tick_ms
-                0x20000e9c        0x4 ./Src/chassis_app.o
+                0x20000eb0        0x4 ./Src/chassis_app.o
  .bss.s_steer_test_duration_ms
-                0x20000ea0        0x4 ./Src/chassis_app.o
+                0x20000eb4        0x4 ./Src/chassis_app.o
  .bss.s_reply_printf_buffer.3
-                0x20000ea4      0x800 ./Src/chassis_app.o
+                0x20000eb8      0x800 ./Src/chassis_app.o
  .bss.next_feedback_target.2
-                0x200016a4        0x1 ./Src/chassis_app.o
- *fill*         0x200016a5        0x3 
+                0x200016b8        0x1 ./Src/chassis_app.o
+ *fill*         0x200016b9        0x3 
  .bss.s_remote_status_buffer.1
-                0x200016a8      0x400 ./Src/chassis_app.o
+                0x200016bc      0x400 ./Src/chassis_app.o
  .bss.s_status_reply_buffer.0
-                0x20001aa8      0x200 ./Src/chassis_app.o
- .bss.s_huart   0x20001ca8        0x4 ./Src/ewm22_link.o
+                0x20001abc      0x600 ./Src/chassis_app.o
+ .bss.s_huart   0x200020bc        0x4 ./Src/ewm22_link.o
  .bss.s_rx_byte
-                0x20001cac        0x1 ./Src/ewm22_link.o
- *fill*         0x20001cad        0x3 
+                0x200020c0        0x1 ./Src/ewm22_link.o
+ *fill*         0x200020c1        0x3 
  .bss.s_line_buffer
-                0x20001cb0      0x300 ./Src/ewm22_link.o
+                0x200020c4      0x300 ./Src/ewm22_link.o
  .bss.s_line_length
-                0x20001fb0        0x2 ./Src/ewm22_link.o
- *fill*         0x20001fb2        0x2 
+                0x200023c4        0x2 ./Src/ewm22_link.o
+ *fill*         0x200023c6        0x2 
  .bss.s_pending_app_command_lines
-                0x20001fb4     0x1800 ./Src/ewm22_link.o
+                0x200023c8     0x1800 ./Src/ewm22_link.o
  .bss.s_pending_app_command_read_index
-                0x200037b4        0x1 ./Src/ewm22_link.o
+                0x20003bc8        0x1 ./Src/ewm22_link.o
  .bss.s_pending_app_command_write_index
-                0x200037b5        0x1 ./Src/ewm22_link.o
+                0x20003bc9        0x1 ./Src/ewm22_link.o
  .bss.s_pending_app_command_count
-                0x200037b6        0x1 ./Src/ewm22_link.o
- *fill*         0x200037b7        0x1 
- .bss.s_state   0x200037b8       0x74 ./Src/ewm22_link.o
- .bss.hadc1     0x2000382c       0x48 ./Src/main.o
-                0x2000382c                hadc1
- .bss.hcan1     0x20003874       0x28 ./Src/main.o
-                0x20003874                hcan1
- .bss.hcan2     0x2000389c       0x28 ./Src/main.o
-                0x2000389c                hcan2
- .bss.huart1    0x200038c4       0x48 ./Src/main.o
-                0x200038c4                huart1
- .bss.huart2    0x2000390c       0x48 ./Src/main.o
-                0x2000390c                huart2
+                0x20003bca        0x1 ./Src/ewm22_link.o
+ *fill*         0x20003bcb        0x1 
+ .bss.s_state   0x20003bcc       0x74 ./Src/ewm22_link.o
+ .bss.hadc1     0x20003c40       0x48 ./Src/main.o
+                0x20003c40                hadc1
+ .bss.hcan1     0x20003c88       0x28 ./Src/main.o
+                0x20003c88                hcan1
+ .bss.hcan2     0x20003cb0       0x28 ./Src/main.o
+                0x20003cb0                hcan2
+ .bss.huart1    0x20003cd8       0x48 ./Src/main.o
+                0x20003cd8                huart1
+ .bss.huart2    0x20003d20       0x48 ./Src/main.o
+                0x20003d20                huart2
  .bss.HAL_RCC_CAN1_CLK_ENABLED
-                0x20003954        0x4 ./Src/stm32f4xx_hal_msp.o
+                0x20003d68        0x4 ./Src/stm32f4xx_hal_msp.o
  .bss.__sbrk_heap_end
-                0x20003958        0x4 ./Src/sysmem.o
+                0x20003d6c        0x4 ./Src/sysmem.o
  .bss.s_rx_accumulator
-                0x2000395c      0x300 ./Src/usb_cdc_shell.o
+                0x20003d70      0x300 ./Src/usb_cdc_shell.o
  .bss.s_ready_line
-                0x20003c5c      0x300 ./Src/usb_cdc_shell.o
+                0x20004070      0x300 ./Src/usb_cdc_shell.o
  .bss.s_line_ready
-                0x20003f5c        0x1 ./Src/usb_cdc_shell.o
- *fill*         0x20003f5d        0x3 
+                0x20004370        0x1 ./Src/usb_cdc_shell.o
+ *fill*         0x20004371        0x3 
  .bss.s_rx_length
-                0x20003f60        0x4 ./Src/usb_cdc_shell.o
+                0x20004374        0x4 ./Src/usb_cdc_shell.o
  .bss.hUsbDeviceFS
-                0x20003f64      0x2dc ./Src/usb_device.o
-                0x20003f64                hUsbDeviceFS
+                0x20004378      0x2dc ./Src/usb_device.o
+                0x20004378                hUsbDeviceFS
  .bss.UserRxBufferFS
-                0x20004240      0x800 ./Src/usbd_cdc_if.o
-                0x20004240                UserRxBufferFS
+                0x20004654      0x800 ./Src/usbd_cdc_if.o
+                0x20004654                UserRxBufferFS
  .bss.UserTxBufferFS
-                0x20004a40      0x800 ./Src/usbd_cdc_if.o
-                0x20004a40                UserTxBufferFS
+                0x20004e54      0x800 ./Src/usbd_cdc_if.o
+                0x20004e54                UserTxBufferFS
  .bss.hpcd_USB_OTG_FS
-                0x20005240      0x4e4 ./Src/usbd_conf.o
-                0x20005240                hpcd_USB_OTG_FS
- .bss.mem.0     0x20005724      0x220 ./Src/usbd_conf.o
+                0x20005654      0x4e4 ./Src/usbd_conf.o
+                0x20005654                hpcd_USB_OTG_FS
+ .bss.mem.0     0x20005b38      0x220 ./Src/usbd_conf.o
  .bss.USBD_StrDesc
-                0x20005944      0x200 ./Src/usbd_desc.o
-                0x20005944                USBD_StrDesc
+                0x20005d58      0x200 ./Src/usbd_desc.o
+                0x20005d58                USBD_StrDesc
  .bss.g_vehicle_config
-                0x20005b44       0x34 ./Src/vehicle_config.o
- .bss.__sf      0x20005b78      0x138 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-findfp.o)
-                0x20005b78                __sf
- .bss.errno     0x20005cb0        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-reent.o)
-                0x20005cb0                errno
+                0x20005f58       0x4c ./Src/vehicle_config.o
+ .bss.__sf      0x20005fa4      0x138 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-findfp.o)
+                0x20005fa4                __sf
+ .bss.errno     0x200060dc        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-reent.o)
+                0x200060dc                errno
  .bss.__lock___malloc_recursive_mutex
-                0x20005cb4        0x1 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-lock.o)
-                0x20005cb4                __lock___malloc_recursive_mutex
- *fill*         0x20005cb5        0x3 
+                0x200060e0        0x1 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-lock.o)
+                0x200060e0                __lock___malloc_recursive_mutex
+ *fill*         0x200060e1        0x3 
  .bss.__malloc_sbrk_start
-                0x20005cb8        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mallocr.o)
-                0x20005cb8                __malloc_sbrk_start
+                0x200060e4        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mallocr.o)
+                0x200060e4                __malloc_sbrk_start
  .bss.__malloc_free_list
-                0x20005cbc        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mallocr.o)
-                0x20005cbc                __malloc_free_list
+                0x200060e8        0x4 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mallocr.o)
+                0x200060e8                __malloc_free_list
  *(COMMON)
-                0x20005cc0                        . = ALIGN (0x4)
-                0x20005cc0                        _ebss = .
-                0x20005cc0                        __bss_end__ = _ebss
+                0x200060ec                        . = ALIGN (0x4)
+                0x200060ec                        _ebss = .
+                0x200060ec                        __bss_end__ = _ebss
 
 ._user_heap_stack
-                0x20005cc0      0x600
-                0x20005cc0                        . = ALIGN (0x8)
+                0x200060ec      0x604
+                0x200060f0                        . = ALIGN (0x8)
+ *fill*         0x200060ec        0x4 
                 [!provide]                        PROVIDE (end = .)
-                0x20005cc0                        PROVIDE (_end = .)
-                0x20005ec0                        . = (. + _Min_Heap_Size)
- *fill*         0x20005cc0      0x200 
-                0x200062c0                        . = (. + _Min_Stack_Size)
- *fill*         0x20005ec0      0x400 
-                0x200062c0                        . = ALIGN (0x8)
+                0x200060f0                        PROVIDE (_end = .)
+                0x200062f0                        . = (. + _Min_Heap_Size)
+ *fill*         0x200060f0      0x200 
+                0x200066f0                        . = (. + _Min_Stack_Size)
+ *fill*         0x200062f0      0x400 
+                0x200066f0                        . = ALIGN (0x8)
 
 /DISCARD/
  libc.a(*)
@@ -7613,7 +7669,7 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
 LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a
 LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libgcc.a
 
-.debug_info     0x00000000    0x1facd
+.debug_info     0x00000000    0x2068e
  .debug_info    0x00000000      0x944 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
  .debug_info    0x00000944      0xce3 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.o
  .debug_info    0x00001627      0xf49 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.o
@@ -7633,24 +7689,24 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  .debug_info    0x0000e842      0x762 ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o
  .debug_info    0x0000efa4      0x948 ./Src/board_io.o
  .debug_info    0x0000f8ec     0x148a ./Src/can_transport.o
- .debug_info    0x00010d76     0x3b4c ./Src/chassis_app.o
- .debug_info    0x000148c2     0x1162 ./Src/drive_controller_mssd.o
- .debug_info    0x00015a24     0x137e ./Src/ewm22_link.o
- .debug_info    0x00016da2     0x12d6 ./Src/main.o
- .debug_info    0x00018078      0xf8b ./Src/steering_controller_mssc.o
- .debug_info    0x00019003     0x133b ./Src/stm32f4xx_hal_msp.o
- .debug_info    0x0001a33e      0xf05 ./Src/stm32f4xx_it.o
- .debug_info    0x0001b243      0x168 ./Src/sysmem.o
- .debug_info    0x0001b3ab      0x512 ./Src/system_stm32f4xx.o
- .debug_info    0x0001b8bd      0x38f ./Src/usb_cdc_shell.o
- .debug_info    0x0001bc4c      0x70e ./Src/usb_device.o
- .debug_info    0x0001c35a      0x928 ./Src/usbd_cdc_if.o
- .debug_info    0x0001cc82     0x1c77 ./Src/usbd_conf.o
- .debug_info    0x0001e8f9      0x458 ./Src/usbd_desc.o
- .debug_info    0x0001ed51      0xd4c ./Src/vehicle_config.o
- .debug_info    0x0001fa9d       0x30 ./Startup/startup_stm32f407zgtx.o
+ .debug_info    0x00010d76     0x3f6a ./Src/chassis_app.o
+ .debug_info    0x00014ce0     0x1162 ./Src/drive_controller_mssd.o
+ .debug_info    0x00015e42     0x13ad ./Src/ewm22_link.o
+ .debug_info    0x000171ef     0x12d6 ./Src/main.o
+ .debug_info    0x000184c5      0xf9b ./Src/steering_controller_mssc.o
+ .debug_info    0x00019460     0x133b ./Src/stm32f4xx_hal_msp.o
+ .debug_info    0x0001a79b      0xf05 ./Src/stm32f4xx_it.o
+ .debug_info    0x0001b6a0      0x168 ./Src/sysmem.o
+ .debug_info    0x0001b808      0x512 ./Src/system_stm32f4xx.o
+ .debug_info    0x0001bd1a      0x38f ./Src/usb_cdc_shell.o
+ .debug_info    0x0001c0a9      0x70e ./Src/usb_device.o
+ .debug_info    0x0001c7b7      0x928 ./Src/usbd_cdc_if.o
+ .debug_info    0x0001d0df     0x1c77 ./Src/usbd_conf.o
+ .debug_info    0x0001ed56      0x458 ./Src/usbd_desc.o
+ .debug_info    0x0001f1ae     0x14b0 ./Src/vehicle_config.o
+ .debug_info    0x0002065e       0x30 ./Startup/startup_stm32f407zgtx.o
 
-.debug_abbrev   0x00000000     0x530c
+.debug_abbrev   0x00000000     0x5340
  .debug_abbrev  0x00000000      0x214 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
  .debug_abbrev  0x00000214      0x252 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.o
  .debug_abbrev  0x00000466      0x258 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.o
@@ -7670,24 +7726,24 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  .debug_abbrev  0x000027b0      0x19a ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o
  .debug_abbrev  0x0000294a      0x24b ./Src/board_io.o
  .debug_abbrev  0x00002b95      0x306 ./Src/can_transport.o
- .debug_abbrev  0x00002e9b      0x3c7 ./Src/chassis_app.o
- .debug_abbrev  0x00003262      0x2da ./Src/drive_controller_mssd.o
- .debug_abbrev  0x0000353c      0x3ae ./Src/ewm22_link.o
- .debug_abbrev  0x000038ea      0x2cf ./Src/main.o
- .debug_abbrev  0x00003bb9      0x2f2 ./Src/steering_controller_mssc.o
- .debug_abbrev  0x00003eab      0x23d ./Src/stm32f4xx_hal_msp.o
- .debug_abbrev  0x000040e8      0x1ec ./Src/stm32f4xx_it.o
- .debug_abbrev  0x000042d4       0xbc ./Src/sysmem.o
- .debug_abbrev  0x00004390      0x11a ./Src/system_stm32f4xx.o
- .debug_abbrev  0x000044aa      0x1b2 ./Src/usb_cdc_shell.o
- .debug_abbrev  0x0000465c      0x195 ./Src/usb_device.o
- .debug_abbrev  0x000047f1      0x2b9 ./Src/usbd_cdc_if.o
- .debug_abbrev  0x00004aaa      0x33f ./Src/usbd_conf.o
- .debug_abbrev  0x00004de9      0x1e1 ./Src/usbd_desc.o
- .debug_abbrev  0x00004fca      0x31e ./Src/vehicle_config.o
- .debug_abbrev  0x000052e8       0x24 ./Startup/startup_stm32f407zgtx.o
+ .debug_abbrev  0x00002e9b      0x3af ./Src/chassis_app.o
+ .debug_abbrev  0x0000324a      0x2da ./Src/drive_controller_mssd.o
+ .debug_abbrev  0x00003524      0x3ae ./Src/ewm22_link.o
+ .debug_abbrev  0x000038d2      0x2cf ./Src/main.o
+ .debug_abbrev  0x00003ba1      0x2f4 ./Src/steering_controller_mssc.o
+ .debug_abbrev  0x00003e95      0x23d ./Src/stm32f4xx_hal_msp.o
+ .debug_abbrev  0x000040d2      0x1ec ./Src/stm32f4xx_it.o
+ .debug_abbrev  0x000042be       0xbc ./Src/sysmem.o
+ .debug_abbrev  0x0000437a      0x11a ./Src/system_stm32f4xx.o
+ .debug_abbrev  0x00004494      0x1b2 ./Src/usb_cdc_shell.o
+ .debug_abbrev  0x00004646      0x195 ./Src/usb_device.o
+ .debug_abbrev  0x000047db      0x2b9 ./Src/usbd_cdc_if.o
+ .debug_abbrev  0x00004a94      0x33f ./Src/usbd_conf.o
+ .debug_abbrev  0x00004dd3      0x1e1 ./Src/usbd_desc.o
+ .debug_abbrev  0x00004fb4      0x368 ./Src/vehicle_config.o
+ .debug_abbrev  0x0000531c       0x24 ./Startup/startup_stm32f407zgtx.o
 
-.debug_aranges  0x00000000     0x1a30
+.debug_aranges  0x00000000     0x1af8
  .debug_aranges
                 0x00000000       0xf0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
  .debug_aranges
@@ -7727,40 +7783,40 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  .debug_aranges
                 0x00000eb0       0xf0 ./Src/can_transport.o
  .debug_aranges
-                0x00000fa0      0x2f0 ./Src/chassis_app.o
+                0x00000fa0      0x350 ./Src/chassis_app.o
  .debug_aranges
-                0x00001290      0x100 ./Src/drive_controller_mssd.o
+                0x000012f0      0x100 ./Src/drive_controller_mssd.o
  .debug_aranges
-                0x00001390      0x100 ./Src/ewm22_link.o
+                0x000013f0      0x108 ./Src/ewm22_link.o
  .debug_aranges
-                0x00001490       0x60 ./Src/main.o
+                0x000014f8       0x60 ./Src/main.o
  .debug_aranges
-                0x000014f0       0xf0 ./Src/steering_controller_mssc.o
+                0x00001558       0xf0 ./Src/steering_controller_mssc.o
  .debug_aranges
-                0x000015e0       0x50 ./Src/stm32f4xx_hal_msp.o
+                0x00001648       0x50 ./Src/stm32f4xx_hal_msp.o
  .debug_aranges
-                0x00001630       0x90 ./Src/stm32f4xx_it.o
+                0x00001698       0x90 ./Src/stm32f4xx_it.o
  .debug_aranges
-                0x000016c0       0x20 ./Src/sysmem.o
+                0x00001728       0x20 ./Src/sysmem.o
  .debug_aranges
-                0x000016e0       0x28 ./Src/system_stm32f4xx.o
+                0x00001748       0x28 ./Src/system_stm32f4xx.o
  .debug_aranges
-                0x00001708       0x40 ./Src/usb_cdc_shell.o
+                0x00001770       0x40 ./Src/usb_cdc_shell.o
  .debug_aranges
-                0x00001748       0x20 ./Src/usb_device.o
+                0x000017b0       0x20 ./Src/usb_device.o
  .debug_aranges
-                0x00001768       0x48 ./Src/usbd_cdc_if.o
+                0x000017d0       0x48 ./Src/usbd_cdc_if.o
  .debug_aranges
-                0x000017b0      0x110 ./Src/usbd_conf.o
+                0x00001818      0x110 ./Src/usbd_conf.o
  .debug_aranges
-                0x000018c0       0x60 ./Src/usbd_desc.o
+                0x00001928       0x60 ./Src/usbd_desc.o
  .debug_aranges
-                0x00001920       0xe8 ./Src/vehicle_config.o
+                0x00001988      0x148 ./Src/vehicle_config.o
  .debug_aranges
-                0x00001a08       0x28 ./Startup/startup_stm32f407zgtx.o
+                0x00001ad0       0x28 ./Startup/startup_stm32f407zgtx.o
 
 .debug_rnglists
-                0x00000000     0x13fa
+                0x00000000     0x1496
  .debug_rnglists
                 0x00000000       0xaf ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
  .debug_rnglists
@@ -7800,39 +7856,39 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  .debug_rnglists
                 0x00000b44       0xbf ./Src/can_transport.o
  .debug_rnglists
-                0x00000c03      0x254 ./Src/chassis_app.o
+                0x00000c03      0x2a0 ./Src/chassis_app.o
  .debug_rnglists
-                0x00000e57       0xc5 ./Src/drive_controller_mssd.o
+                0x00000ea3       0xc5 ./Src/drive_controller_mssd.o
  .debug_rnglists
-                0x00000f1c       0xc9 ./Src/ewm22_link.o
+                0x00000f68       0xcf ./Src/ewm22_link.o
  .debug_rnglists
-                0x00000fe5       0x46 ./Src/main.o
+                0x00001037       0x46 ./Src/main.o
  .debug_rnglists
-                0x0000102b       0xb7 ./Src/steering_controller_mssc.o
+                0x0000107d       0xb6 ./Src/steering_controller_mssc.o
  .debug_rnglists
-                0x000010e2       0x3b ./Src/stm32f4xx_hal_msp.o
+                0x00001133       0x3b ./Src/stm32f4xx_hal_msp.o
  .debug_rnglists
-                0x0000111d       0x67 ./Src/stm32f4xx_it.o
+                0x0000116e       0x67 ./Src/stm32f4xx_it.o
  .debug_rnglists
-                0x00001184       0x13 ./Src/sysmem.o
+                0x000011d5       0x13 ./Src/sysmem.o
  .debug_rnglists
-                0x00001197       0x1a ./Src/system_stm32f4xx.o
+                0x000011e8       0x1a ./Src/system_stm32f4xx.o
  .debug_rnglists
-                0x000011b1       0x2c ./Src/usb_cdc_shell.o
+                0x00001202       0x2c ./Src/usb_cdc_shell.o
  .debug_rnglists
-                0x000011dd       0x13 ./Src/usb_device.o
+                0x0000122e       0x13 ./Src/usb_device.o
  .debug_rnglists
-                0x000011f0       0x32 ./Src/usbd_cdc_if.o
+                0x00001241       0x32 ./Src/usbd_cdc_if.o
  .debug_rnglists
-                0x00001222       0xc9 ./Src/usbd_conf.o
+                0x00001273       0xc9 ./Src/usbd_conf.o
  .debug_rnglists
-                0x000012eb       0x43 ./Src/usbd_desc.o
+                0x0000133c       0x43 ./Src/usbd_desc.o
  .debug_rnglists
-                0x0000132e       0xb3 ./Src/vehicle_config.o
+                0x0000137f       0xfe ./Src/vehicle_config.o
  .debug_rnglists
-                0x000013e1       0x19 ./Startup/startup_stm32f407zgtx.o
+                0x0000147d       0x19 ./Startup/startup_stm32f407zgtx.o
 
-.debug_macro    0x00000000    0x2727e
+.debug_macro    0x00000000    0x272e4
  .debug_macro   0x00000000      0x270 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
  .debug_macro   0x00000270      0xad8 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
  .debug_macro   0x00000d48      0x2a7 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
@@ -7932,35 +7988,35 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  .debug_macro   0x00023a0d      0x33d ./Src/can_transport.o
  .debug_macro   0x00023d4a       0x61 ./Src/can_transport.o
  .debug_macro   0x00023dab       0x10 ./Src/can_transport.o
- .debug_macro   0x00023dbb      0x48b ./Src/chassis_app.o
- .debug_macro   0x00024246      0x119 ./Src/chassis_app.o
- .debug_macro   0x0002435f      0x19b ./Src/chassis_app.o
- .debug_macro   0x000244fa       0x58 ./Src/chassis_app.o
- .debug_macro   0x00024552       0x1c ./Src/chassis_app.o
- .debug_macro   0x0002456e       0x1c ./Src/chassis_app.o
- .debug_macro   0x0002458a      0x26c ./Src/drive_controller_mssd.o
- .debug_macro   0x000247f6      0x348 ./Src/ewm22_link.o
- .debug_macro   0x00024b3e      0x38c ./Src/main.o
- .debug_macro   0x00024eca      0x260 ./Src/steering_controller_mssc.o
- .debug_macro   0x0002512a      0x21f ./Src/stm32f4xx_hal_msp.o
- .debug_macro   0x00025349      0x244 ./Src/stm32f4xx_it.o
- .debug_macro   0x0002558d      0x112 ./Src/sysmem.o
- .debug_macro   0x0002569f      0x23c ./Src/sysmem.o
- .debug_macro   0x000258db      0x210 ./Src/system_stm32f4xx.o
- .debug_macro   0x00025aeb      0x3e0 ./Src/usb_cdc_shell.o
- .debug_macro   0x00025ecb       0xb2 ./Src/usb_cdc_shell.o
- .debug_macro   0x00025f7d       0x10 ./Src/usb_cdc_shell.o
- .debug_macro   0x00025f8d       0x4c ./Src/usb_cdc_shell.o
- .debug_macro   0x00025fd9      0x3c9 ./Src/usb_device.o
- .debug_macro   0x000263a2       0x22 ./Src/usb_device.o
- .debug_macro   0x000263c4       0x16 ./Src/usb_device.o
- .debug_macro   0x000263da      0x3be ./Src/usbd_cdc_if.o
- .debug_macro   0x00026798      0x3ad ./Src/usbd_conf.o
- .debug_macro   0x00026b45      0x3d3 ./Src/usbd_desc.o
- .debug_macro   0x00026f18       0x1c ./Src/usbd_desc.o
- .debug_macro   0x00026f34      0x34a ./Src/vehicle_config.o
+ .debug_macro   0x00023dbb      0x4b5 ./Src/chassis_app.o
+ .debug_macro   0x00024270      0x119 ./Src/chassis_app.o
+ .debug_macro   0x00024389      0x19b ./Src/chassis_app.o
+ .debug_macro   0x00024524       0x58 ./Src/chassis_app.o
+ .debug_macro   0x0002457c       0x1c ./Src/chassis_app.o
+ .debug_macro   0x00024598       0x1c ./Src/chassis_app.o
+ .debug_macro   0x000245b4      0x26c ./Src/drive_controller_mssd.o
+ .debug_macro   0x00024820      0x348 ./Src/ewm22_link.o
+ .debug_macro   0x00024b68      0x38c ./Src/main.o
+ .debug_macro   0x00024ef4      0x266 ./Src/steering_controller_mssc.o
+ .debug_macro   0x0002515a      0x21f ./Src/stm32f4xx_hal_msp.o
+ .debug_macro   0x00025379      0x244 ./Src/stm32f4xx_it.o
+ .debug_macro   0x000255bd      0x112 ./Src/sysmem.o
+ .debug_macro   0x000256cf      0x23c ./Src/sysmem.o
+ .debug_macro   0x0002590b      0x210 ./Src/system_stm32f4xx.o
+ .debug_macro   0x00025b1b      0x3e0 ./Src/usb_cdc_shell.o
+ .debug_macro   0x00025efb       0xb2 ./Src/usb_cdc_shell.o
+ .debug_macro   0x00025fad       0x10 ./Src/usb_cdc_shell.o
+ .debug_macro   0x00025fbd       0x4c ./Src/usb_cdc_shell.o
+ .debug_macro   0x00026009      0x3c9 ./Src/usb_device.o
+ .debug_macro   0x000263d2       0x22 ./Src/usb_device.o
+ .debug_macro   0x000263f4       0x16 ./Src/usb_device.o
+ .debug_macro   0x0002640a      0x3be ./Src/usbd_cdc_if.o
+ .debug_macro   0x000267c8      0x3ad ./Src/usbd_conf.o
+ .debug_macro   0x00026b75      0x3d3 ./Src/usbd_desc.o
+ .debug_macro   0x00026f48       0x1c ./Src/usbd_desc.o
+ .debug_macro   0x00026f64      0x380 ./Src/vehicle_config.o
 
-.debug_line     0x00000000    0x1d4cc
+.debug_line     0x00000000    0x1dee1
  .debug_line    0x00000000      0x8c8 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
  .debug_line    0x000008c8     0x10df ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.o
  .debug_line    0x000019a7     0x1087 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.o
@@ -7979,61 +8035,61 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  .debug_line    0x0000e1d4      0xf41 ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.o
  .debug_line    0x0000f115      0x886 ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o
  .debug_line    0x0000f99b      0x752 ./Src/board_io.o
- .debug_line    0x000100ed     0x1176 ./Src/can_transport.o
- .debug_line    0x00011263     0x34f8 ./Src/chassis_app.o
- .debug_line    0x0001475b      0xdfa ./Src/drive_controller_mssd.o
- .debug_line    0x00015555     0x11dc ./Src/ewm22_link.o
- .debug_line    0x00016731      0x9a0 ./Src/main.o
- .debug_line    0x000170d1      0xdb9 ./Src/steering_controller_mssc.o
- .debug_line    0x00017e8a      0x74d ./Src/stm32f4xx_hal_msp.o
- .debug_line    0x000185d7      0x72d ./Src/stm32f4xx_it.o
- .debug_line    0x00018d04      0x34b ./Src/sysmem.o
- .debug_line    0x0001904f      0x647 ./Src/system_stm32f4xx.o
- .debug_line    0x00019696      0x94d ./Src/usb_cdc_shell.o
- .debug_line    0x00019fe3      0x841 ./Src/usb_device.o
- .debug_line    0x0001a824      0x8ac ./Src/usbd_cdc_if.o
- .debug_line    0x0001b0d0      0xc30 ./Src/usbd_conf.o
- .debug_line    0x0001bd00      0x8ea ./Src/usbd_desc.o
- .debug_line    0x0001c5ea      0xe68 ./Src/vehicle_config.o
- .debug_line    0x0001d452       0x7a ./Startup/startup_stm32f407zgtx.o
+ .debug_line    0x000100ed     0x1179 ./Src/can_transport.o
+ .debug_line    0x00011266     0x3a90 ./Src/chassis_app.o
+ .debug_line    0x00014cf6      0xdfa ./Src/drive_controller_mssd.o
+ .debug_line    0x00015af0     0x1218 ./Src/ewm22_link.o
+ .debug_line    0x00016d08      0x9a0 ./Src/main.o
+ .debug_line    0x000176a8      0xdd5 ./Src/steering_controller_mssc.o
+ .debug_line    0x0001847d      0x74d ./Src/stm32f4xx_hal_msp.o
+ .debug_line    0x00018bca      0x72d ./Src/stm32f4xx_it.o
+ .debug_line    0x000192f7      0x34b ./Src/sysmem.o
+ .debug_line    0x00019642      0x647 ./Src/system_stm32f4xx.o
+ .debug_line    0x00019c89      0x94d ./Src/usb_cdc_shell.o
+ .debug_line    0x0001a5d6      0x841 ./Src/usb_device.o
+ .debug_line    0x0001ae17      0x8ac ./Src/usbd_cdc_if.o
+ .debug_line    0x0001b6c3      0xc30 ./Src/usbd_conf.o
+ .debug_line    0x0001c2f3      0x8ea ./Src/usbd_desc.o
+ .debug_line    0x0001cbdd     0x128a ./Src/vehicle_config.o
+ .debug_line    0x0001de67       0x7a ./Startup/startup_stm32f407zgtx.o
 
-.debug_str      0x00000000    0xdbcfc
- .debug_str     0x00000000    0xdbcfc ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
+.debug_str      0x00000000    0xdc4eb
+ .debug_str     0x00000000    0xdc4eb ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
                               0xcd4f9 (size before relaxing)
- .debug_str     0x000dbcfc    0xccf62 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.o
- .debug_str     0x000dbcfc    0xcd06f ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.o
- .debug_str     0x000dbcfc    0xcd275 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.o
- .debug_str     0x000dbcfc    0xccd8f ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.o
- .debug_str     0x000dbcfc    0xccb65 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.o
- .debug_str     0x000dbcfc    0xccbb5 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.o
- .debug_str     0x000dbcfc    0xccaf0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.o
- .debug_str     0x000dbcfc    0xcd453 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd.o
- .debug_str     0x000dbcfc    0xccd43 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd_ex.o
- .debug_str     0x000dbcfc    0xccda9 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.o
- .debug_str     0x000dbcfc    0xcd38a ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.o
- .debug_str     0x000dbcfc    0xcd32e ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.o
- .debug_str     0x000dbcfc    0xd1c6e ./Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.o
- .debug_str     0x000dbcfc    0xd15ce ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.o
- .debug_str     0x000dbcfc    0xd13f9 ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.o
- .debug_str     0x000dbcfc    0xd12ce ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o
- .debug_str     0x000dbcfc    0xcd188 ./Src/board_io.o
- .debug_str     0x000dbcfc    0xd0b1d ./Src/can_transport.o
- .debug_str     0x000dbcfc    0xd4a95 ./Src/chassis_app.o
- .debug_str     0x000dbcfc    0xcd8fd ./Src/drive_controller_mssd.o
- .debug_str     0x000dbcfc    0xd11ed ./Src/ewm22_link.o
- .debug_str     0x000dbcfc    0xd19c0 ./Src/main.o
- .debug_str     0x000dbcfc    0xcd788 ./Src/steering_controller_mssc.o
- .debug_str     0x000dbcfc    0xcda0d ./Src/stm32f4xx_hal_msp.o
- .debug_str     0x000dbcfc    0xcd6d5 ./Src/stm32f4xx_it.o
- .debug_str     0x000dbcfc     0x7753 ./Src/sysmem.o
- .debug_str     0x000dbcfc    0xcc970 ./Src/system_stm32f4xx.o
- .debug_str     0x000dbcfc    0xd13f3 ./Src/usb_cdc_shell.o
- .debug_str     0x000dbcfc    0xd1676 ./Src/usb_device.o
- .debug_str     0x000dbcfc    0xd16d8 ./Src/usbd_cdc_if.o
- .debug_str     0x000dbcfc    0xd24b5 ./Src/usbd_conf.o
- .debug_str     0x000dbcfc    0xd11bb ./Src/usbd_desc.o
- .debug_str     0x000dbcfc    0xd0f84 ./Src/vehicle_config.o
- .debug_str     0x000dbcfc       0x93 ./Startup/startup_stm32f407zgtx.o
+ .debug_str     0x000dc4eb    0xccf62 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.o
+ .debug_str     0x000dc4eb    0xcd06f ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.o
+ .debug_str     0x000dc4eb    0xcd275 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.o
+ .debug_str     0x000dc4eb    0xccd8f ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.o
+ .debug_str     0x000dc4eb    0xccb65 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.o
+ .debug_str     0x000dc4eb    0xccbb5 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.o
+ .debug_str     0x000dc4eb    0xccaf0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.o
+ .debug_str     0x000dc4eb    0xcd453 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd.o
+ .debug_str     0x000dc4eb    0xccd43 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd_ex.o
+ .debug_str     0x000dc4eb    0xccda9 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.o
+ .debug_str     0x000dc4eb    0xcd38a ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.o
+ .debug_str     0x000dc4eb    0xcd32e ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.o
+ .debug_str     0x000dc4eb    0xd1c6e ./Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.o
+ .debug_str     0x000dc4eb    0xd15ce ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.o
+ .debug_str     0x000dc4eb    0xd13f9 ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.o
+ .debug_str     0x000dc4eb    0xd12ce ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o
+ .debug_str     0x000dc4eb    0xcd188 ./Src/board_io.o
+ .debug_str     0x000dc4eb    0xd0b2b ./Src/can_transport.o
+ .debug_str     0x000dc4eb    0xd4ea3 ./Src/chassis_app.o
+ .debug_str     0x000dc4eb    0xcd8fd ./Src/drive_controller_mssd.o
+ .debug_str     0x000dc4eb    0xd123b ./Src/ewm22_link.o
+ .debug_str     0x000dc4eb    0xd19c0 ./Src/main.o
+ .debug_str     0x000dc4eb    0xcd7cf ./Src/steering_controller_mssc.o
+ .debug_str     0x000dc4eb    0xcda0d ./Src/stm32f4xx_hal_msp.o
+ .debug_str     0x000dc4eb    0xcd6d5 ./Src/stm32f4xx_it.o
+ .debug_str     0x000dc4eb     0x7753 ./Src/sysmem.o
+ .debug_str     0x000dc4eb    0xcc970 ./Src/system_stm32f4xx.o
+ .debug_str     0x000dc4eb    0xd13f3 ./Src/usb_cdc_shell.o
+ .debug_str     0x000dc4eb    0xd1676 ./Src/usb_device.o
+ .debug_str     0x000dc4eb    0xd16d8 ./Src/usbd_cdc_if.o
+ .debug_str     0x000dc4eb    0xd24b5 ./Src/usbd_conf.o
+ .debug_str     0x000dc4eb    0xd11bb ./Src/usbd_desc.o
+ .debug_str     0x000dc4eb    0xd13af ./Src/vehicle_config.o
+ .debug_str     0x000dc4eb       0x93 ./Startup/startup_stm32f407zgtx.o
 
 .comment        0x00000000       0x45
  .comment       0x00000000       0x45 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
@@ -8072,7 +8128,7 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  .comment       0x00000045       0x46 ./Src/usbd_desc.o
  .comment       0x00000045       0x46 ./Src/vehicle_config.o
 
-.debug_frame    0x00000000     0x755c
+.debug_frame    0x00000000     0x78dc
  .debug_frame   0x00000000      0x374 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.o
  .debug_frame   0x00000374      0x3fc ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.o
  .debug_frame   0x00000770      0x5a0 ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.o
@@ -8092,55 +8148,55 @@ LOAD C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib
  .debug_frame   0x00003bf0      0x10c ./Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.o
  .debug_frame   0x00003cfc      0x128 ./Src/board_io.o
  .debug_frame   0x00003e24      0x3fc ./Src/can_transport.o
- .debug_frame   0x00004220      0xd40 ./Src/chassis_app.o
- .debug_frame   0x00004f60      0x458 ./Src/drive_controller_mssd.o
- .debug_frame   0x000053b8      0x444 ./Src/ewm22_link.o
- .debug_frame   0x000057fc      0x120 ./Src/main.o
- .debug_frame   0x0000591c      0x40c ./Src/steering_controller_mssc.o
- .debug_frame   0x00005d28      0x110 ./Src/stm32f4xx_hal_msp.o
- .debug_frame   0x00005e38      0x1ac ./Src/stm32f4xx_it.o
- .debug_frame   0x00005fe4       0x34 ./Src/sysmem.o
- .debug_frame   0x00006018       0x58 ./Src/system_stm32f4xx.o
- .debug_frame   0x00006070       0xd8 ./Src/usb_cdc_shell.o
- .debug_frame   0x00006148       0x2c ./Src/usb_device.o
- .debug_frame   0x00006174       0xe4 ./Src/usbd_cdc_if.o
- .debug_frame   0x00006258      0x47c ./Src/usbd_conf.o
- .debug_frame   0x000066d4      0x160 ./Src/usbd_desc.o
- .debug_frame   0x00006834      0x3f0 ./Src/vehicle_config.o
- .debug_frame   0x00006c24       0x64 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtol.o)
- .debug_frame   0x00006c88       0x64 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtoul.o)
- .debug_frame   0x00006cec      0x144 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-findfp.o)
- .debug_frame   0x00006e30       0x7c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-snprintf.o)
- .debug_frame   0x00006eac       0x4c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-vsnprintf.o)
- .debug_frame   0x00006ef8       0x28 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memmove.o)
- .debug_frame   0x00006f20       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memset.o)
- .debug_frame   0x00006f40       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strchr.o)
- .debug_frame   0x00006f60       0x28 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strncmp.o)
- .debug_frame   0x00006f88       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strstr.o)
- .debug_frame   0x00006fb4       0x38 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-reent.o)
- .debug_frame   0x00006fec       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-errno.o)
- .debug_frame   0x0000700c       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-init.o)
- .debug_frame   0x00007038       0xb0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-lock.o)
- .debug_frame   0x000070e8       0x28 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memcpy-stub.o)
- .debug_frame   0x00007110       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strlen.o)
- .debug_frame   0x00007130       0x38 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-freer.o)
- .debug_frame   0x00007168       0x50 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mallocr.o)
- .debug_frame   0x000071b8       0x30 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mlock.o)
- .debug_frame   0x000071e8       0x90 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-svfprintf.o)
- .debug_frame   0x00007278       0x60 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-vfprintf_i.o)
- .debug_frame   0x000072d8       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-sbrkr.o)
- .debug_frame   0x00007304       0x4c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memchr.o)
- .debug_frame   0x00007350       0x3c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-reallocr.o)
- .debug_frame   0x0000738c       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-msizer.o)
- .debug_frame   0x000073ac       0x30 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_tan.o)
- .debug_frame   0x000073dc       0x28 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_tan.o)
- .debug_frame   0x00007404       0x3c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-ef_rem_pio2.o)
- .debug_frame   0x00007440       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_fabs.o)
- .debug_frame   0x00007460       0x5c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_rem_pio2.o)
- .debug_frame   0x000074bc       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_scalbn.o)
- .debug_frame   0x000074dc       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_floor.o)
- .debug_frame   0x000074fc       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libgcc.a(_aeabi_uldivmod.o)
- .debug_frame   0x00007528       0x34 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libgcc.a(_udivmoddi4.o)
+ .debug_frame   0x00004220      0xee4 ./Src/chassis_app.o
+ .debug_frame   0x00005104      0x458 ./Src/drive_controller_mssd.o
+ .debug_frame   0x0000555c      0x468 ./Src/ewm22_link.o
+ .debug_frame   0x000059c4      0x120 ./Src/main.o
+ .debug_frame   0x00005ae4      0x40c ./Src/steering_controller_mssc.o
+ .debug_frame   0x00005ef0      0x110 ./Src/stm32f4xx_hal_msp.o
+ .debug_frame   0x00006000      0x1ac ./Src/stm32f4xx_it.o
+ .debug_frame   0x000061ac       0x34 ./Src/sysmem.o
+ .debug_frame   0x000061e0       0x58 ./Src/system_stm32f4xx.o
+ .debug_frame   0x00006238       0xd8 ./Src/usb_cdc_shell.o
+ .debug_frame   0x00006310       0x2c ./Src/usb_device.o
+ .debug_frame   0x0000633c       0xe4 ./Src/usbd_cdc_if.o
+ .debug_frame   0x00006420      0x47c ./Src/usbd_conf.o
+ .debug_frame   0x0000689c      0x160 ./Src/usbd_desc.o
+ .debug_frame   0x000069fc      0x5a8 ./Src/vehicle_config.o
+ .debug_frame   0x00006fa4       0x64 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtol.o)
+ .debug_frame   0x00007008       0x64 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strtoul.o)
+ .debug_frame   0x0000706c      0x144 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-findfp.o)
+ .debug_frame   0x000071b0       0x7c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-snprintf.o)
+ .debug_frame   0x0000722c       0x4c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-vsnprintf.o)
+ .debug_frame   0x00007278       0x28 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memmove.o)
+ .debug_frame   0x000072a0       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memset.o)
+ .debug_frame   0x000072c0       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strchr.o)
+ .debug_frame   0x000072e0       0x28 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strncmp.o)
+ .debug_frame   0x00007308       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strstr.o)
+ .debug_frame   0x00007334       0x38 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-reent.o)
+ .debug_frame   0x0000736c       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-errno.o)
+ .debug_frame   0x0000738c       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-init.o)
+ .debug_frame   0x000073b8       0xb0 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-lock.o)
+ .debug_frame   0x00007468       0x28 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memcpy-stub.o)
+ .debug_frame   0x00007490       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strlen.o)
+ .debug_frame   0x000074b0       0x38 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-freer.o)
+ .debug_frame   0x000074e8       0x50 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mallocr.o)
+ .debug_frame   0x00007538       0x30 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-mlock.o)
+ .debug_frame   0x00007568       0x90 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-svfprintf.o)
+ .debug_frame   0x000075f8       0x60 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-nano-vfprintf_i.o)
+ .debug_frame   0x00007658       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-sbrkr.o)
+ .debug_frame   0x00007684       0x4c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memchr.o)
+ .debug_frame   0x000076d0       0x3c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-reallocr.o)
+ .debug_frame   0x0000770c       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-msizer.o)
+ .debug_frame   0x0000772c       0x30 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_tan.o)
+ .debug_frame   0x0000775c       0x28 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_tan.o)
+ .debug_frame   0x00007784       0x3c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-ef_rem_pio2.o)
+ .debug_frame   0x000077c0       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_fabs.o)
+ .debug_frame   0x000077e0       0x5c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-kf_rem_pio2.o)
+ .debug_frame   0x0000783c       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_scalbn.o)
+ .debug_frame   0x0000785c       0x20 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libm.a(libm_a-sf_floor.o)
+ .debug_frame   0x0000787c       0x2c C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libgcc.a(_aeabi_uldivmod.o)
+ .debug_frame   0x000078a8       0x34 C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard\libgcc.a(_udivmoddi4.o)
 
 .debug_line_str
                 0x00000000      0x240

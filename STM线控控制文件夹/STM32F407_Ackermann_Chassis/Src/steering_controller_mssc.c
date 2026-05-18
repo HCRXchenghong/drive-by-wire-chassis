@@ -5,6 +5,7 @@
 #define MSSC_FEEDBACK_QUERY_PERIOD_MS 120U
 #define MSSC_FEEDBACK_TIMEOUT_MS 200U
 #define MSSC_WRITE_ACK_TIMEOUT_MS 200U
+#define MSSC_POSITION_PAIR_MAX_AGE_MS 500U
 #define MSSC_WRITE_COOKIE_FLAG 0x80000000UL
 
 static void mssc_build_write16(uint8_t *frame, uint16_t reg_addr, int16_t value)
@@ -78,6 +79,7 @@ static void mssc_invalidate_feedback_cache(mssc_steering_controller_t *controlle
   controller->position_high_word = 0U;
   controller->position_low_word = 0U;
   controller->position_words_valid_mask = 0U;
+  controller->position_high_tick_ms = 0U;
   controller->last_position_tick_ms = 0U;
 }
 
@@ -159,10 +161,23 @@ static void mssc_consume_feedback_result(mssc_steering_controller_t *controller,
   if (result->index == (uint16_t)(0x4000U + MSSC_REG_POSITION_HIGH))
   {
     controller->position_high_word = word_value;
-    controller->position_words_valid_mask |= 0x01U;
+    controller->position_words_valid_mask = 0x01U;
+    controller->position_high_tick_ms = result->tick_ms;
   }
   else if (result->index == (uint16_t)(0x4000U + MSSC_REG_POSITION_LOW))
   {
+    if (((controller->position_words_valid_mask & 0x01U) == 0U) ||
+        (controller->position_high_tick_ms == 0U) ||
+        ((result->tick_ms - controller->position_high_tick_ms) > MSSC_POSITION_PAIR_MAX_AGE_MS))
+    {
+      controller->position_words_valid_mask = 0U;
+      controller->position_high_tick_ms = 0U;
+      controller->feedback_request_pending = false;
+      controller->last_feedback_ok_tick_ms = result->tick_ms;
+      controller->feedback_fault_active = false;
+      return;
+    }
+
     controller->position_low_word = word_value;
     controller->position_words_valid_mask |= 0x02U;
   }
@@ -179,6 +194,8 @@ static void mssc_consume_feedback_result(mssc_steering_controller_t *controller,
     controller->last_position_raw =
         (int32_t)(((uint32_t)controller->position_high_word << 16) | (uint32_t)controller->position_low_word);
     controller->last_position_tick_ms = result->tick_ms;
+    controller->position_words_valid_mask = 0U;
+    controller->position_high_tick_ms = 0U;
     controller->feedback_fault_active = false;
   }
 }
@@ -349,6 +366,7 @@ void mssc_steering_controller_bind(mssc_steering_controller_t *controller,
   controller->position_low_word = 0U;
   controller->position_words_valid_mask = 0U;
   controller->next_feedback_reg = 0U;
+  controller->position_high_tick_ms = 0U;
   controller->last_position_raw = 0;
   controller->last_position_tick_ms = 0U;
 }
@@ -356,11 +374,6 @@ void mssc_steering_controller_bind(mssc_steering_controller_t *controller,
 bool mssc_steering_controller_prepare_for_can_control(const mssc_steering_controller_t *controller)
 {
   if ((controller == NULL) || (controller->hcan == NULL))
-  {
-    return false;
-  }
-
-  if (mssc_bus_has_pending_transaction(controller))
   {
     return false;
   }
@@ -373,11 +386,6 @@ bool mssc_steering_controller_set_speed_rpm_priority(const mssc_steering_control
                                                      can_transport_priority_t priority)
 {
   if ((controller == NULL) || (controller->hcan == NULL))
-  {
-    return false;
-  }
-
-  if (mssc_bus_has_pending_transaction(controller))
   {
     return false;
   }
@@ -407,11 +415,6 @@ bool mssc_steering_controller_stop_priority(const mssc_steering_controller_t *co
                                             can_transport_priority_t priority)
 {
   if ((controller == NULL) || (controller->hcan == NULL))
-  {
-    return false;
-  }
-
-  if (mssc_bus_has_pending_transaction(controller))
   {
     return false;
   }

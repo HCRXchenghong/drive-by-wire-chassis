@@ -19,6 +19,7 @@ export const PROFILE_TEMPLATE = {
   wheelbaseMm: DEFAULT_APP_CONFIG.wheelbaseMm,
   rearTrackMm: DEFAULT_APP_CONFIG.rearTrackMm,
   driveMaxRpm: DEFAULT_APP_CONFIG.driveMaxRpm,
+  steeringMaxRpm: DEFAULT_APP_CONFIG.steeringMaxRpm,
   steerCanNodeId: DEFAULT_APP_CONFIG.steerCanNodeId,
   handwheelCanNodeId: DEFAULT_APP_CONFIG.handwheelCanNodeId,
   chassisType: DEFAULT_APP_CONFIG.chassisType,
