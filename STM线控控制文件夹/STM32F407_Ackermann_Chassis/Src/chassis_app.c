@@ -23,7 +23,7 @@
 #define CONTROL_DEFAULT_DRIVE_MAX_RPM 500U
 #define CONTROL_MIN_DRIVE_MAX_RPM 50U
 #define CONTROL_MAX_DRIVE_MAX_RPM 5000U
-#define CONTROL_MAX_STEER_RPM 80.0f
+#define CONTROL_MAX_STEER_RPM 1000U
 #define CONTROL_MIN_TURN_RADIUS_MM 1500.0f
 #define CONTROL_TURN_RADIUS_WHEELBASE_SCALE 2.0f
 #define CONTROL_MAX_ACKERMANN_SPLIT 0.35f
@@ -57,11 +57,39 @@
 #define VEHICLE_MOTION_HOLD_MS 1500U
 #define VEHICLE_ACTUAL_MOTION_HOLD_MS 1000U
 #define VEHICLE_TARGET_RPM_MOVING_THRESHOLD 15
+#define VEHICLE_SERVICE_LOCK_RPM_THRESHOLD 60
 #define STEERING_LIMIT_CLAMP_RATIO 0.95f
-#define STEERING_POSITION_DEADBAND_DEG 0.5f
-#define STEERING_POSITION_MIN_RPM 12.0f
-#define STEERING_POSITION_KP 4.0f
+/* 转向闭环采用滞回控制（hysteresis）：因为 MSSC 控制器内部存在最低
+ * 转速门限（参见 MSSC 资料 V1.0 第 2.4 节寄存器 0x0051 "电机最小转速"，
+ * 资料明确说明"一般设置在 200RPM 以下"，即低于该门限的命令会被控制器
+ * 钳到 0），任何形式的纯比例控制只要进入"误差小但仍想微调"的区间，
+ * 就会被迫输出 200 RPM 这种相对很大的命令，必然过冲。
+ *
+ * 滞回的两条门槛：
+ *   - HOLD_DEADBAND_DEG  : 已经"到位"的判定。一旦 |误差| 落进这条门，
+ *                          立即把电机停下，并标记 steer_engaged = false。
+ *                          阈值给得偏大，是为了把 MSSC 最低 RPM 必然
+ *                          带来的过冲容忍掉。
+ *   - ENGAGE_DEADBAND_DEG: 已经停下时，只有 |误差| 超过这条门才允许
+ *                          重新驱动电机，否则继续保持停止。
+ *
+ * 两条门槛之差就是滞回带宽，必须明显大于"MSSC 最低 RPM 在一个控制
+ * 周期内能跑过的角度"，否则一过冲就再次触发回打，又陷入抖动。 */
+#define STEERING_HOLD_DEADBAND_DEG 1.5f
+#define STEERING_ENGAGE_DEADBAND_DEG 3.0f
+/* MSSC 资料 V1.0 第 2.4 节寄存器 0x0051 "电机最小转速"：
+ *   "0～最大转速，单位为 RPM，一般设置在 200RPM 以下"。
+ * 实际整套驱控一体最低有效命令在 150~200 RPM 区间，低于该门限会被
+ * 控制器内部钳到 0。这里统一到 200 RPM，确保任何下发都能让电机真转。 */
+#define STEERING_POSITION_MIN_RPM 200.0f
+/* 比例增益。大误差时让闭环按 KP*err 全速跑，小误差时被 MIN_RPM 兜底。 */
+#define STEERING_POSITION_KP 50.0f
+/* 兼容旧字段：control_compute_mode_split 里也用到一个角度死区，仅作
+ * "差速回退到摇杆开环"的判定，不影响电机命令。沿用 HOLD 阈值即可。 */
+#define STEERING_POSITION_DEADBAND_DEG STEERING_HOLD_DEADBAND_DEG
 #define STEERING_FEEDBACK_BOOT_GRACE_MS 1200U
+#define STEERING_COMMAND_REFRESH_MS 500U
+#define CAN_START_RETRY_MS 500U
 #define DEBUG_TEST_DEFAULT_DURATION_MS 500U
 #define DEBUG_TEST_MAX_DURATION_MS 1500U
 
@@ -73,9 +101,11 @@ static CAN_HandleTypeDef *s_steer_can_handle = NULL;
 static bool s_drive_can_ready = false;
 static bool s_steer_can_ready = false;
 static bool s_reply_to_remote = false;
+static uint32_t s_last_can_start_retry_tick_ms = 0U;
 
 static bool calibration_override_active(void);
 static bool preferred_vehicle_motion_state(void);
+static bool handwheel_controller_should_command(void);
 static bool steering_feedback_get(int32_t *position_raw, uint32_t *age_ms);
 static bool steering_feedback_is_recent(void);
 static float steering_raw_to_angle_deg(const vehicle_config_t *config, int32_t raw_value);
@@ -83,6 +113,7 @@ static int32_t steering_target_raw_from_norm(const vehicle_config_t *config, flo
 static int16_t steering_target_rpm_from_feedback(const vehicle_config_t *config,
                                                  int32_t target_raw,
                                                  int32_t current_raw,
+                                                 bool *steer_engaged,
                                                  float *target_angle_deg,
                                                  float *actual_angle_deg);
 static void fault_state_refresh(void);
@@ -119,6 +150,13 @@ typedef struct
   int32_t steer_target_raw;
   float steer_target_angle_deg;
   float steer_actual_angle_deg;
+  /* 转向闭环滞回状态：true 表示当前正在驱动电机收敛到目标，
+   * false 表示已经在 HOLD 死区内停下、等待误差再次超过 ENGAGE 门槛。
+   * 这个状态横跨多个控制周期，是滞回控制的关键。 */
+  bool steer_engaged;
+  bool steer_output_command_valid;
+  int16_t steer_output_command_rpm;
+  uint32_t last_steer_output_command_tick_ms;
   drive_command_mode_t drive_command_mode;
   bool remote_active;
   bool local_control_active;
@@ -516,17 +554,31 @@ static const char *chassis_fault_message_zh(chassis_fault_code_t code)
   }
 }
 
-static float steering_side_raw_per_10deg(int16_t center_value, int16_t ten_degree_value, int16_t limit_value)
+static float steering_side_raw_per_10deg(int32_t center_value, int32_t ten_degree_value, int32_t limit_value)
 {
-  int32_t delta = (int32_t)ten_degree_value - (int32_t)center_value;
+  int32_t delta = ten_degree_value - center_value;
 
   if (delta != 0)
   {
     return (float)delta;
   }
 
-  delta = (int32_t)limit_value - (int32_t)center_value;
+  delta = limit_value - center_value;
   return (float)delta;
+}
+
+static bool steering_raw_on_same_side(int32_t center_value, int32_t lhs, int32_t rhs)
+{
+  int32_t lhs_delta = lhs - center_value;
+  int32_t rhs_delta = rhs - center_value;
+
+  if ((lhs_delta == 0) || (rhs_delta == 0))
+  {
+    return false;
+  }
+
+  return ((lhs_delta < 0) && (rhs_delta < 0)) ||
+         ((lhs_delta > 0) && (rhs_delta > 0));
 }
 
 static float steering_raw_to_angle_deg(const vehicle_config_t *config, int32_t raw_value)
@@ -534,6 +586,7 @@ static float steering_raw_to_angle_deg(const vehicle_config_t *config, int32_t r
   float delta_per_10deg;
   int32_t center_value;
   int32_t raw_delta;
+  bool on_left_side;
 
   if (config == NULL)
   {
@@ -547,7 +600,11 @@ static float steering_raw_to_angle_deg(const vehicle_config_t *config, int32_t r
     return 0.0f;
   }
 
-  if (raw_delta < 0)
+  on_left_side =
+      steering_raw_on_same_side(center_value, raw_value, config->steering_left_10) ||
+      steering_raw_on_same_side(center_value, raw_value, config->steering_left_limit);
+
+  if (on_left_side)
   {
     delta_per_10deg = steering_side_raw_per_10deg(config->steering_center,
                                                   config->steering_left_10,
@@ -565,7 +622,12 @@ static float steering_raw_to_angle_deg(const vehicle_config_t *config, int32_t r
     return 0.0f;
   }
 
-  return ((float)raw_delta / delta_per_10deg) * 10.0f;
+  if (on_left_side)
+  {
+    return -fabsf(((float)raw_delta / delta_per_10deg) * 10.0f);
+  }
+
+  return fabsf(((float)raw_delta / delta_per_10deg) * 10.0f);
 }
 
 static int32_t steering_target_raw_from_norm(const vehicle_config_t *config, float steer_norm)
@@ -603,13 +665,17 @@ static int32_t steering_target_raw_from_norm(const vehicle_config_t *config, flo
 static int16_t steering_target_rpm_from_feedback(const vehicle_config_t *config,
                                                  int32_t target_raw,
                                                  int32_t current_raw,
+                                                 bool *steer_engaged,
                                                  float *target_angle_deg,
                                                  float *actual_angle_deg)
 {
   float target_angle = steering_raw_to_angle_deg(config, target_raw);
   float current_angle = steering_raw_to_angle_deg(config, current_raw);
   float angle_error = target_angle - current_angle;
-  float rpm_command = angle_error * STEERING_POSITION_KP;
+  int32_t raw_error = target_raw - current_raw;
+  float abs_error = fabsf(angle_error);
+  bool engaged = (steer_engaged != NULL) && *steer_engaged;
+  float rpm_command;
 
   if (target_angle_deg != NULL)
   {
@@ -621,15 +687,51 @@ static int16_t steering_target_rpm_from_feedback(const vehicle_config_t *config,
     *actual_angle_deg = current_angle;
   }
 
-  if (fabsf(angle_error) <= STEERING_POSITION_DEADBAND_DEG)
+  /* 滞回判定：
+   *  - 已 engaged：保持驱动直到 |误差| 落进 HOLD 死区，再脱开。
+   *  - 未 engaged：只有 |误差| 超过 ENGAGE 门槛才允许重新驱动。
+   * ENGAGE > HOLD 这条不等式构成滞回带，避免 MSSC 最低 RPM 必然带
+   * 来的小幅过冲立即触发反向回打。 */
+  if (engaged)
+  {
+    if (abs_error <= STEERING_HOLD_DEADBAND_DEG)
+    {
+      engaged = false;
+    }
+  }
+  else
+  {
+    if (abs_error >= STEERING_ENGAGE_DEADBAND_DEG)
+    {
+      engaged = true;
+    }
+  }
+
+  if (steer_engaged != NULL)
+  {
+    *steer_engaged = engaged;
+  }
+
+  if (!engaged)
   {
     return 0;
   }
 
-  rpm_command = clamp_float(rpm_command, -CONTROL_MAX_STEER_RPM, CONTROL_MAX_STEER_RPM);
-  if ((fabsf(rpm_command) < STEERING_POSITION_MIN_RPM) && (fabsf(angle_error) > STEERING_POSITION_DEADBAND_DEG))
+  /* 比例项：目标 RPM = KP * 误差。
+   * 大误差时由固定 1000 RPM 上限钳位，小误差时由 MSSC 最低门
+   * 限兜底，方向永远跟随 angle_error 的符号——不依赖 KP*err 自身的
+   * 符号，因此 KP=0 或 err≈0 时仍然方向明确。 */
+  rpm_command = abs_error * STEERING_POSITION_KP;
+  rpm_command = clamp_float(rpm_command, 0.0f, (float)CONTROL_MAX_STEER_RPM);
+
+  if (fabsf(rpm_command) < STEERING_POSITION_MIN_RPM)
   {
-    rpm_command = (rpm_command >= 0.0f) ? STEERING_POSITION_MIN_RPM : -STEERING_POSITION_MIN_RPM;
+    rpm_command = STEERING_POSITION_MIN_RPM;
+  }
+
+  if (raw_error < 0)
+  {
+    rpm_command = -rpm_command;
   }
 
   return (int16_t)float_to_int32(rpm_command);
@@ -644,12 +746,66 @@ static void control_reset_targets(void)
   s_control_state.steer_target_raw = 0;
   s_control_state.steer_target_angle_deg = 0.0f;
   s_control_state.steer_actual_angle_deg = 0.0f;
+  s_control_state.steer_engaged = false;
   s_control_state.drive_command_mode = DRIVE_COMMAND_NORMAL_STOP;
   s_control_state.remote_active = false;
   s_control_state.local_control_active = false;
   s_control_state.soft_stop_active = false;
   s_control_state.emergency_stop_active = false;
   s_control_state.vehicle_moving = preferred_vehicle_motion_state() || calibration_override_active();
+}
+
+static void steering_output_cache_reset(void)
+{
+  s_control_state.steer_output_command_valid = false;
+  s_control_state.steer_output_command_rpm = 0;
+  s_control_state.last_steer_output_command_tick_ms = 0U;
+}
+
+static void steering_output_cache_mark(int16_t rpm)
+{
+  s_control_state.steer_output_command_valid = true;
+  s_control_state.steer_output_command_rpm = rpm;
+  s_control_state.last_steer_output_command_tick_ms = HAL_GetTick();
+}
+
+static bool steering_output_apply(int16_t rpm, can_transport_priority_t priority, bool force)
+{
+  uint32_t now = HAL_GetTick();
+  bool ok;
+
+  if (!s_steer_can_ready)
+  {
+    return false;
+  }
+
+  if (!force &&
+      s_control_state.steer_output_command_valid &&
+      (s_control_state.steer_output_command_rpm == rpm) &&
+      ((now - s_control_state.last_steer_output_command_tick_ms) < STEERING_COMMAND_REFRESH_MS))
+  {
+    return true;
+  }
+
+  if (rpm == 0)
+  {
+    ok = mssc_steering_controller_stop_priority(&s_steer_controller, priority);
+  }
+  else
+  {
+    ok = mssc_steering_controller_set_speed_rpm_priority(&s_steer_controller, rpm, priority);
+  }
+
+  if (ok)
+  {
+    steering_output_cache_mark(rpm);
+  }
+  else
+  {
+    steering_output_cache_reset();
+  }
+
+  return ok;
 }
 
 static void control_zero_drive_targets(drive_command_mode_t mode)
@@ -663,7 +819,7 @@ static void control_zero_drive_targets(drive_command_mode_t mode)
   s_control_state.last_motion_tick_ms = 0U;
 }
 
-static void control_stop_outputs(void)
+static void control_stop_outputs_selective(bool stop_steering, bool stop_handwheel)
 {
   if (s_drive_can_ready)
   {
@@ -672,14 +828,33 @@ static void control_stop_outputs(void)
 
   if (s_steer_can_ready)
   {
-    (void)mssc_steering_controller_stop_priority(&s_steer_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
-    (void)mssc_steering_controller_stop_priority(&s_handwheel_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
+    if (stop_steering)
+    {
+      if (mssc_steering_controller_stop_priority(&s_steer_controller, CAN_TRANSPORT_PRIORITY_CRITICAL))
+      {
+        steering_output_cache_mark(0);
+      }
+      else
+      {
+        steering_output_cache_reset();
+      }
+    }
+
+    if (stop_handwheel)
+    {
+      (void)mssc_steering_controller_stop_priority(&s_handwheel_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
+    }
   }
 
   control_reset_targets();
   s_control_state.last_drive_safety_stop_tick_ms = 0U;
   s_drive_test_duration_ms = 0U;
   s_steer_test_duration_ms = 0U;
+}
+
+static void control_stop_outputs(void)
+{
+  control_stop_outputs_selective(true, handwheel_controller_should_command());
 }
 
 static void control_set_enabled(bool enabled)
@@ -870,6 +1045,19 @@ static bool chassis_service_actions_locked(void)
   return preferred_vehicle_motion_state();
 }
 
+static bool chassis_drive_motion_locked(void)
+{
+  if (drive_feedback_available())
+  {
+    return (s_control_state.right_actual_rpm_valid &&
+            int32_abs_exceeds(s_control_state.right_actual_rpm, VEHICLE_SERVICE_LOCK_RPM_THRESHOLD)) ||
+           (s_control_state.left_actual_rpm_valid &&
+            int32_abs_exceeds(s_control_state.left_actual_rpm, VEHICLE_SERVICE_LOCK_RPM_THRESHOLD));
+  }
+
+  return s_control_state.vehicle_moving_command;
+}
+
 static void controllers_bind_from_config(void)
 {
   const vehicle_config_t *config = vehicle_config_get();
@@ -892,6 +1080,50 @@ static void controllers_bind_from_config(void)
   }
 }
 
+static void can_start_retry_process(void)
+{
+  uint32_t now;
+  bool ready_changed = false;
+
+  if (s_drive_can_ready && s_steer_can_ready)
+  {
+    return;
+  }
+
+  now = HAL_GetTick();
+  if ((s_last_can_start_retry_tick_ms != 0U) &&
+      ((now - s_last_can_start_retry_tick_ms) < CAN_START_RETRY_MS))
+  {
+    return;
+  }
+  s_last_can_start_retry_tick_ms = now;
+
+  if (!s_drive_can_ready && (s_drive_can_handle != NULL))
+  {
+    if (can_transport_start(s_drive_can_handle, 0U, 14U))
+    {
+      s_drive_can_ready = true;
+      ready_changed = true;
+    }
+  }
+
+  if (!s_steer_can_ready && (s_steer_can_handle != NULL))
+  {
+    if (can_transport_start(s_steer_can_handle, 14U, 14U))
+    {
+      s_steer_can_ready = true;
+      ready_changed = true;
+      steering_output_cache_reset();
+    }
+  }
+
+  if (ready_changed)
+  {
+    controllers_bind_from_config();
+    control_reset_targets();
+  }
+}
+
 static bool linear_steering_detected(void)
 {
   int32_t position_raw = 0;
@@ -908,6 +1140,15 @@ static bool linear_steering_detected(void)
   }
 
   return (age_ms <= LINEAR_STEERING_ACTIVITY_WINDOW_MS);
+}
+
+static bool handwheel_controller_should_command(void)
+{
+  const vehicle_config_t *config = vehicle_config_get();
+
+  return (config->linear_steering_enabled != 0U) ||
+         s_calibration_runtime.handwheel_override_active ||
+         linear_steering_detected();
 }
 
 static bool steering_feedback_get(int32_t *position_raw, uint32_t *age_ms)
@@ -967,6 +1208,35 @@ static void handwheel_feedback_update(void)
   {
     s_calibration_runtime.handwheel_estimate = position_raw;
   }
+}
+
+static void calibration_runtime_refresh_cached_feedbacks(void)
+{
+  int32_t position_raw = 0;
+
+  if (steering_feedback_get(&position_raw, NULL))
+  {
+    s_calibration_runtime.steering_estimate = position_raw;
+  }
+
+  if (handwheel_feedback_get(&position_raw, NULL))
+  {
+    s_calibration_runtime.handwheel_estimate = position_raw;
+  }
+}
+
+static void calibration_runtime_update_axis(bool is_handwheel)
+{
+  if (is_handwheel)
+  {
+    handwheel_feedback_update();
+  }
+  else
+  {
+    steering_feedback_update();
+  }
+
+  calibration_runtime_refresh_cached_feedbacks();
 }
 
 static void drive_feedback_update(void)
@@ -1128,16 +1398,31 @@ static void fault_state_refresh(void)
 
   if (next_fault_state.outputs_locked && !s_fault_state.outputs_locked)
   {
+    bool stop_handwheel = handwheel_controller_should_command();
+
     s_calibration_runtime.steering_override_active = false;
     s_calibration_runtime.handwheel_override_active = false;
     s_calibration_runtime.steering_jog_rpm = 0;
     s_calibration_runtime.handwheel_jog_rpm = 0;
     mssc_steering_controller_invalidate_can_control_mode(&s_steer_controller);
-    mssc_steering_controller_invalidate_can_control_mode(&s_handwheel_controller);
+    if (stop_handwheel)
+    {
+      mssc_steering_controller_invalidate_can_control_mode(&s_handwheel_controller);
+    }
     control_reset_targets();
     (void)mssd_drive_controller_stop_priority(&s_drive_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
-    (void)mssc_steering_controller_stop_priority(&s_steer_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
-    (void)mssc_steering_controller_stop_priority(&s_handwheel_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
+    if (mssc_steering_controller_stop_priority(&s_steer_controller, CAN_TRANSPORT_PRIORITY_CRITICAL))
+    {
+      steering_output_cache_mark(0);
+    }
+    else
+    {
+      steering_output_cache_reset();
+    }
+    if (stop_handwheel)
+    {
+      (void)mssc_steering_controller_stop_priority(&s_handwheel_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
+    }
   }
 
   s_fault_state = next_fault_state;
@@ -1200,7 +1485,7 @@ static float control_compute_mode_split(const vehicle_config_t *config,
                                         float steer_norm_fallback)
 {
   float wheelbase_mm;
-  float rear_split;
+  float driven_track_mm;
   float split = 0.0f;
   float steer_angle_deg = actual_steer_angle_deg;
   float curvature;
@@ -1218,6 +1503,8 @@ static float control_compute_mode_split(const vehicle_config_t *config,
     wheelbase_mm = CONTROL_MIN_TURN_RADIUS_MM;
   }
 
+  driven_track_mm = (mode == DRIVE_MODE_FWD) ? (float)config->front_track_mm : (float)config->rear_track_mm;
+
   if ((fabsf(steer_angle_deg) < STEERING_POSITION_DEADBAND_DEG) &&
       (fabsf(steer_norm_fallback) > 0.001f))
   {
@@ -1225,8 +1512,7 @@ static float control_compute_mode_split(const vehicle_config_t *config,
   }
 
   curvature = tanf(steer_angle_deg * 3.14159265358979323846f / 180.0f) / wheelbase_mm;
-  rear_split = 0.5f * (float)config->rear_track_mm * curvature;
-  split = rear_split;
+  split = 0.5f * driven_track_mm * curvature;
 
   return clamp_float(split,
                      -CONTROL_MAX_ACKERMANN_SPLIT,
@@ -1245,8 +1531,10 @@ static void calibration_runtime_update(void)
   else
   {
     handwheel_feedback_update();
-    next_feedback_target = 0U;
+      next_feedback_target = 0U;
   }
+
+  calibration_runtime_refresh_cached_feedbacks();
 }
 
 static void control_update_targets(void)
@@ -1280,6 +1568,8 @@ static void control_update_targets(void)
   bool remote_soft_stop_active = s_control_state.remote_soft_stop_latched;
   bool motion_command_present = false;
 
+  steer_input = remote_drive_active ? remote_state->steer : s_control_state.steer_input;
+
   if (remote_fresh && ((remote_state->buttons & REMOTE_BUTTON_ESTOP_MASK) != 0U))
   {
     remote_estop_active = true;
@@ -1304,7 +1594,6 @@ static void control_update_targets(void)
   if (hardware_estop_active || local_estop_active || remote_estop_active)
   {
     demand = 0.0f;
-    steer_input = 0;
     drive_command_mode = DRIVE_COMMAND_ESTOP;
     s_control_state.remote_active = false;
     s_control_state.soft_stop_active = false;
@@ -1313,7 +1602,6 @@ static void control_update_targets(void)
   else if (remote_soft_stop_active)
   {
     demand = 0.0f;
-    steer_input = 0;
     drive_command_mode = DRIVE_COMMAND_NORMAL_STOP;
     s_control_state.remote_active = false;
     s_control_state.soft_stop_active = true;
@@ -1381,7 +1669,6 @@ static void control_update_targets(void)
       if (brake >= PEDAL_ACTIVE_THRESHOLD)
       {
         demand = 0.0f;
-        steer_input = 0;
         drive_command_mode = DRIVE_COMMAND_ESTOP;
       }
       else
@@ -1434,6 +1721,7 @@ static void control_update_targets(void)
   {
     s_control_state.steer_target_rpm = 0;
     s_control_state.steer_actual_angle_deg = 0.0f;
+    s_control_state.steer_engaged = false;
   }
   else
   {
@@ -1447,13 +1735,16 @@ static void control_update_targets(void)
           steering_target_rpm_from_feedback(config,
                                             s_control_state.steer_target_raw,
                                             steering_feedback_raw,
+                                            &s_control_state.steer_engaged,
                                             &s_control_state.steer_target_angle_deg,
                                             &s_control_state.steer_actual_angle_deg);
     }
     else
     {
+      /* 反馈不新鲜时既不能闭环也不能凭空 engage，强制脱开。 */
       s_control_state.steer_target_rpm = 0;
       s_control_state.steer_actual_angle_deg = 0.0f;
+      s_control_state.steer_engaged = false;
     }
   }
 
@@ -1519,13 +1810,13 @@ static void control_process(void)
   {
     if ((mode == DRIVE_MODE_DIFF) || (s_control_state.steer_target_rpm == 0))
     {
-      (void)mssc_steering_controller_stop_priority(&s_steer_controller, CAN_TRANSPORT_PRIORITY_HIGH);
+      (void)steering_output_apply(0, CAN_TRANSPORT_PRIORITY_HIGH, false);
     }
     else
     {
-      (void)mssc_steering_controller_set_speed_rpm_priority(&s_steer_controller,
-                                                            s_control_state.steer_target_rpm,
-                                                            CAN_TRANSPORT_PRIORITY_NORMAL);
+      (void)steering_output_apply(s_control_state.steer_target_rpm,
+                                  CAN_TRANSPORT_PRIORITY_NORMAL,
+                                  false);
     }
   }
 }
@@ -1541,9 +1832,9 @@ static void calibration_process(void)
 
   if (s_calibration_runtime.steering_override_active)
   {
-    (void)mssc_steering_controller_set_speed_rpm_priority(&s_steer_controller,
-                                                          s_calibration_runtime.steering_jog_rpm,
-                                                          CAN_TRANSPORT_PRIORITY_HIGH);
+    (void)steering_output_apply(s_calibration_runtime.steering_jog_rpm,
+                                CAN_TRANSPORT_PRIORITY_HIGH,
+                                false);
   }
 
   if (s_calibration_runtime.handwheel_override_active)
@@ -1575,8 +1866,18 @@ static void debug_test_watchdog_process(void)
     s_steer_test_duration_ms = 0U;
     if (s_steer_can_ready)
     {
-      (void)mssc_steering_controller_stop_priority(&s_steer_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
-      (void)mssc_steering_controller_stop_priority(&s_handwheel_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
+      if (mssc_steering_controller_stop_priority(&s_steer_controller, CAN_TRANSPORT_PRIORITY_CRITICAL))
+      {
+        steering_output_cache_mark(0);
+      }
+      else
+      {
+        steering_output_cache_reset();
+      }
+      if (handwheel_controller_should_command())
+      {
+        (void)mssc_steering_controller_stop_priority(&s_handwheel_controller, CAN_TRANSPORT_PRIORITY_CRITICAL);
+      }
     }
     control_set_enabled(true);
   }
@@ -1599,6 +1900,13 @@ static void publish_remote_status_if_needed(void)
   int32_t steering_feedback_raw = 0;
   bool steering_feedback_valid = steering_feedback_get(&steering_feedback_raw, &steering_feedback_age_ms) &&
                                  steering_feedback_is_recent();
+  bool remote_fresh = remote_command_is_fresh(remote_state, now);
+  uint32_t remote_age_ms = 0U;
+
+  if (remote_state->last_rx_tick_ms != 0U)
+  {
+    remote_age_ms = now - remote_state->last_rx_tick_ms;
+  }
 
   if (s_drive_can_ready && mssd_drive_controller_get_feedback(&s_drive_controller, &drive_feedback))
   {
@@ -1625,7 +1933,9 @@ static void publish_remote_status_if_needed(void)
       sizeof(s_remote_status_buffer),
       "{\"cmd\":\"chassis_status\",\"seq\":%lu,\"dm\":\"%s\","
       "\"g\":\"%s\",\"oe\":%u,"
-      "\"co\":\"%s\",\"rm\":\"%s\",\"rto\":%u,\"lca\":%u,\"mov\":%u,\"mvc\":%u,\"mva\":%u,"
+      "\"co\":\"%s\",\"rm\":\"%s\",\"rto\":%u,\"rv\":%u,\"ra\":%lu,"
+      "\"src\":\"%s\",\"rfc\":%lu,\"rce\":%lu,\"rpe\":%lu,\"roe\":%lu,"
+      "\"lca\":%u,\"mov\":%u,\"mvc\":%u,\"mva\":%u,"
       "\"ssa\":%u,\"esa\":%u,\"hea\":%u,"
       "\"fault_code\":\"%s\",\"fault_domain\":\"%s\","
       "\"dcf\":%u,\"scf\":%u,\"hcf\":%u,\"cra\":%u,"
@@ -1641,6 +1951,13 @@ static void publish_remote_status_if_needed(void)
       control_owner_name(remote_state, now),
       remote_control_mode_name(s_control_state.remote_control_mode),
       s_control_state.remote_takeover_enabled ? 1U : 0U,
+      remote_fresh ? 1U : 0U,
+      (unsigned long)remote_age_ms,
+      ewm22_link_remote_source_name(remote_state->remote_source),
+      (unsigned long)remote_state->frame_count,
+      (unsigned long)remote_state->crc_error_count,
+      (unsigned long)remote_state->parse_error_count,
+      (unsigned long)remote_state->overflow_error_count,
       s_control_state.local_control_active ? 1U : 0U,
       s_control_state.vehicle_moving ? 1U : 0U,
       s_control_state.vehicle_moving_command ? 1U : 0U,
@@ -1734,7 +2051,8 @@ static void reply_config(void)
 
   (void)reply_printf(
       "{\"cmd\":\"config_ack\",\"ok\":true,"
-      "\"front_track_mm\":%u,\"wheelbase_mm\":%u,\"rear_track_mm\":%u,\"drive_max_rpm\":%u,"
+      "\"front_track_mm\":%u,\"wheelbase_mm\":%u,\"rear_track_mm\":%u,"
+      "\"drive_max_rpm\":%u,"
       "\"steer_can_node_id\":%u,\"handwheel_can_node_id\":%u,"
       "\"chassis_type\":\"%s\",\"drive_axle\":\"%s\",\"drive_mode\":\"%s\","
       "\"linear_steering_enabled\":%s,\"pedal_config\":\"%s\","
@@ -1765,44 +2083,55 @@ static void reply_calibration_status(void)
       "{\"cmd\":\"calibration_status\",\"ok\":true,"
       "\"throttle_raw_min\":%u,\"throttle_raw_max\":%u,"
       "\"brake_raw_min\":%u,\"brake_raw_max\":%u,"
-      "\"steering_center\":%d,\"steering_left_10\":%d,\"steering_right_10\":%d,"
-      "\"steering_left_limit\":%d,\"steering_right_limit\":%d,"
-      "\"handwheel_center\":%d,\"handwheel_left_10\":%d,\"handwheel_right_10\":%d,"
-      "\"handwheel_left_limit\":%d,\"handwheel_right_limit\":%d,"
+      "\"steering_center\":%ld,\"steering_left_10\":%ld,\"steering_right_10\":%ld,"
+      "\"steering_left_limit\":%ld,\"steering_right_limit\":%ld,"
+      "\"handwheel_center\":%ld,\"handwheel_left_10\":%ld,\"handwheel_right_10\":%ld,"
+      "\"handwheel_left_limit\":%ld,\"handwheel_right_limit\":%ld,"
       "\"steering_estimate\":%ld,\"handwheel_estimate\":%ld}\r\n",
       (unsigned int)config->throttle_raw_min,
       (unsigned int)config->throttle_raw_max,
       (unsigned int)config->brake_raw_min,
       (unsigned int)config->brake_raw_max,
-      (int)config->steering_center,
-      (int)config->steering_left_10,
-      (int)config->steering_right_10,
-      (int)config->steering_left_limit,
-      (int)config->steering_right_limit,
-      (int)config->handwheel_center,
-      (int)config->handwheel_left_10,
-      (int)config->handwheel_right_10,
-      (int)config->handwheel_left_limit,
-      (int)config->handwheel_right_limit,
+      (long)config->steering_center,
+      (long)config->steering_left_10,
+      (long)config->steering_right_10,
+      (long)config->steering_left_limit,
+      (long)config->steering_right_limit,
+      (long)config->handwheel_center,
+      (long)config->handwheel_left_10,
+      (long)config->handwheel_right_10,
+      (long)config->handwheel_left_limit,
+      (long)config->handwheel_right_limit,
       (long)s_calibration_runtime.steering_estimate,
       (long)s_calibration_runtime.handwheel_estimate);
 }
 
 static void reply_status(void)
 {
-  static char s_status_reply_buffer[512];
+  static char s_status_reply_buffer[1536];
   const vehicle_config_t *config = vehicle_config_get();
   const board_io_state_t *io_state = board_io_get();
   const ewm22_link_state_t *remote_state = ewm22_link_get_state();
   drive_mode_t mode = vehicle_config_runtime_drive_mode(config);
+  can_transport_bus_state_t steer_bus_state = {0};
   uint32_t now = HAL_GetTick();
   bool remote_fresh = remote_command_is_fresh(remote_state, now);
   uint32_t remote_age_ms = 0U;
+  uint32_t steering_feedback_age_ms = 0U;
+  int32_t steering_feedback_raw = 0;
+  bool steering_feedback_valid = false;
+  bool steer_bus_state_valid = false;
+  int32_t steer_target_angle_deg = float_to_int32(s_control_state.steer_target_angle_deg);
+  int32_t steer_actual_angle_deg = float_to_int32(s_control_state.steer_actual_angle_deg);
 
   if (remote_state->last_rx_tick_ms != 0U)
   {
     remote_age_ms = now - remote_state->last_rx_tick_ms;
   }
+
+  steering_feedback_valid = steering_feedback_get(&steering_feedback_raw, &steering_feedback_age_ms) &&
+                            (steering_feedback_age_ms <= STEERING_FEEDBACK_STALE_MS);
+  steer_bus_state_valid = can_transport_get_bus_state(s_steer_can_handle, &steer_bus_state);
 
   /* Keep the ack compact so it fits in a handful of BLE MTU=20 fragments and
    * never overruns the uni-app bridge's 1024-byte line assembler.  All the
@@ -1812,6 +2141,7 @@ static void reply_status(void)
       s_status_reply_buffer,
       sizeof(s_status_reply_buffer),
       "{\"cmd\":\"status_ack\",\"ok\":true,"
+      "\"fw\":\"%s %s\","
       "\"ct\":\"%s\",\"da\":\"%s\",\"dm\":\"%s\",\"dmr\":%u,"
       "\"g\":\"%s\",\"co\":\"%s\",\"rm\":\"%s\","
       "\"rto\":%u,\"lca\":%u,\"mov\":%u,\"mvc\":%u,\"mva\":%u,"
@@ -1820,8 +2150,15 @@ static void reply_status(void)
       "\"dcf\":%u,\"scf\":%u,\"hcf\":%u,\"cra\":%u,"
       "\"ls\":%u,\"lsd\":%u,"
       "\"thr\":%u,\"brk\":%u,"
-      "\"dc\":%u,\"sc\":%u,\"sid\":%u,\"hid\":%u,\"ldi\":%u,\"rdi\":%u,"
-      "\"rv\":%u,\"ra\":%lu,\"ble_connected\":%u}\n",
+      "\"lr\":%ld,\"rr\":%ld,\"lar\":%ld,\"rar\":%ld,\"lav\":%u,\"rav\":%u,\"dfv\":%u,"
+      "\"si\":%ld,\"sr\":%d,\"str\":%ld,\"sta\":%ld,\"saa\":%ld,\"seg\":%u,"
+      "\"sf\":%ld,\"sfv\":%u,\"sfa\":%lu,"
+      "\"dc\":%u,\"sc\":%u,\"stx\":%lu,\"srx\":%lu,\"stmo\":%lu,\"sq\":%u,\"sp\":%u,"
+      "\"sid\":%u,\"hid\":%u,\"ldi\":%u,\"rdi\":%u,"
+      "\"rv\":%u,\"ra\":%lu,\"rs\":\"%s\",\"rfc\":%lu,\"rpe\":%lu,\"roe\":%lu,"
+      "\"ble_connected\":%u}\n",
+      __DATE__,
+      __TIME__,
       vehicle_config_chassis_type_name((chassis_type_t)config->chassis_type),
       vehicle_config_drive_axle_name((drive_axle_t)config->drive_axle),
       vehicle_config_drive_mode_name(mode),
@@ -1849,14 +2186,39 @@ static void reply_status(void)
       linear_steering_detected() ? 1U : 0U,
       (unsigned int)io_state->throttle_raw,
       (unsigned int)io_state->brake_raw,
+      (long)s_control_state.left_target_rpm,
+      (long)s_control_state.right_target_rpm,
+      (long)s_control_state.left_actual_rpm,
+      (long)s_control_state.right_actual_rpm,
+      s_control_state.left_actual_rpm_valid ? 1U : 0U,
+      s_control_state.right_actual_rpm_valid ? 1U : 0U,
+      drive_feedback_available() ? 1U : 0U,
+      (long)s_control_state.steer_input,
+      (int)s_control_state.steer_target_rpm,
+      (long)s_control_state.steer_target_raw,
+      (long)steer_target_angle_deg,
+      (long)steer_actual_angle_deg,
+      s_control_state.steer_engaged ? 1U : 0U,
+      (long)steering_feedback_raw,
+      steering_feedback_valid ? 1U : 0U,
+      (unsigned long)steering_feedback_age_ms,
       s_drive_can_ready ? 1U : 0U,
       s_steer_can_ready ? 1U : 0U,
+      steer_bus_state_valid ? (unsigned long)steer_bus_state.tx_count : 0UL,
+      steer_bus_state_valid ? (unsigned long)steer_bus_state.rx_count : 0UL,
+      steer_bus_state_valid ? (unsigned long)steer_bus_state.timeout_count : 0UL,
+      steer_bus_state_valid ? (unsigned int)steer_bus_state.queue_depth : 0U,
+      (steer_bus_state_valid && steer_bus_state.read_pending) ? 1U : 0U,
       (unsigned int)config->steer_can_node_id,
       (unsigned int)config->handwheel_can_node_id,
       (unsigned int)(config->left_drive_inverted ? 1U : 0U),
       (unsigned int)(config->right_drive_inverted ? 1U : 0U),
       remote_fresh ? 1U : 0U,
       (unsigned long)remote_age_ms,
+      ewm22_link_remote_source_name(remote_state->remote_source),
+      (unsigned long)remote_state->frame_count,
+      (unsigned long)remote_state->parse_error_count,
+      (unsigned long)remote_state->overflow_error_count,
       remote_state->ble_connected ? 1U : 0U);
 
   (void)reply_write(s_status_reply_buffer);
@@ -1933,7 +2295,7 @@ static bool parse_calibration_axis(const char *text, bool *is_handwheel)
   return false;
 }
 
-static int16_t *resolve_calibration_field(bool is_handwheel, const char *point_name)
+static int32_t *resolve_calibration_field(bool is_handwheel, const char *point_name)
 {
   vehicle_config_t *config = (vehicle_config_t *)vehicle_config_get();
 
@@ -2073,7 +2435,7 @@ static void handle_set_config(const char *line)
       config.chassis_type = (uint8_t)CHASSIS_TYPE_ACKERMANN;
       config.drive_axle = (uint8_t)DRIVE_AXLE_FWD;
     }
-    else if ((drive_mode == DRIVE_MODE_RWD) || (drive_mode == DRIVE_MODE_AWD))
+    else if (drive_mode == DRIVE_MODE_RWD)
     {
       config.chassis_type = (uint8_t)CHASSIS_TYPE_ACKERMANN;
       config.drive_axle = (uint8_t)DRIVE_AXLE_RWD;
@@ -2161,6 +2523,18 @@ static void handle_set_steer_input(const char *line)
 
   s_control_state.steer_input =
       clamp_int32(value, -CONTROL_STEER_INPUT_LIMIT, CONTROL_STEER_INPUT_LIMIT);
+  reply_status();
+}
+
+static void handle_app_control_inject(const char *line)
+{
+  if (!ewm22_link_inject_app_control_json(line))
+  {
+    (void)reply_write("{\"cmd\":\"status_ack\",\"ok\":false,\"error\":\"app_control_parse_failed\"}\r\n");
+    return;
+  }
+
+  s_control_state.last_control_tick_ms = 0U;
   reply_status();
 }
 
@@ -2261,8 +2635,20 @@ static void handle_steer_test(const char *line)
   control_set_enabled(false);
   duration_ms = clamp_int32(duration_ms, 50, (int32_t)DEBUG_TEST_MAX_DURATION_MS);
 
+  /* 与闭环路径一致：非零命令低于 MSSC 最低门限会被钳到 0，电机不转。
+   * 这里把幅值抬到 STEERING_POSITION_MIN_RPM，方向沿用用户指定。 */
+  if ((speed_rpm > 0) && (speed_rpm < (int32_t)STEERING_POSITION_MIN_RPM))
+  {
+    speed_rpm = (int32_t)STEERING_POSITION_MIN_RPM;
+  }
+  else if ((speed_rpm < 0) && (speed_rpm > -(int32_t)STEERING_POSITION_MIN_RPM))
+  {
+    speed_rpm = -(int32_t)STEERING_POSITION_MIN_RPM;
+  }
+
   if (mssc_steering_controller_set_speed_rpm(&s_steer_controller, (int16_t)speed_rpm))
   {
+    steering_output_cache_mark((int16_t)speed_rpm);
     s_steer_test_start_tick_ms = HAL_GetTick();
     s_steer_test_duration_ms = (speed_rpm == 0) ? 0U : (uint32_t)duration_ms;
     s_control_state.steer_target_rpm = (int16_t)speed_rpm;
@@ -2281,6 +2667,7 @@ static void handle_stop_all(void)
   bool drive_ok = true;
   bool steer_ok = true;
   bool handwheel_ok = true;
+  bool stop_handwheel = handwheel_controller_should_command();
 
   control_set_enabled(false);
   s_calibration_runtime.steering_override_active = false;
@@ -2300,7 +2687,18 @@ static void handle_stop_all(void)
   if (s_steer_can_ready)
   {
     steer_ok = mssc_steering_controller_stop(&s_steer_controller);
-    handwheel_ok = mssc_steering_controller_stop(&s_handwheel_controller);
+    if (steer_ok)
+    {
+      steering_output_cache_mark(0);
+    }
+    else
+    {
+      steering_output_cache_reset();
+    }
+    if (stop_handwheel)
+    {
+      handwheel_ok = mssc_steering_controller_stop(&s_handwheel_controller);
+    }
   }
 
   (void)reply_printf(
@@ -2432,13 +2830,13 @@ static void handle_steering_jog(const char *line)
     return;
   }
 
-  if ((rpm != 0) && chassis_service_actions_locked())
+  if ((rpm != 0) && chassis_drive_motion_locked())
   {
     (void)reply_write("{\"cmd\":\"steering_jog\",\"ok\":false,\"error\":\"vehicle_moving\"}\r\n");
     return;
   }
 
-  calibration_runtime_update();
+  calibration_runtime_update_axis(is_handwheel);
 
   if (!s_steer_can_ready)
   {
@@ -2448,36 +2846,62 @@ static void handle_steering_jog(const char *line)
 
   if (rpm == 0)
   {
-    s_calibration_runtime.steering_override_active = false;
-    s_calibration_runtime.handwheel_override_active = false;
-    s_calibration_runtime.steering_jog_rpm = 0;
-    s_calibration_runtime.handwheel_jog_rpm = 0;
-    control_stop_outputs();
-    control_set_enabled(true);
-    (void)mssc_steering_controller_stop(&s_steer_controller);
-    (void)mssc_steering_controller_stop(&s_handwheel_controller);
+    if (is_handwheel)
+    {
+      s_calibration_runtime.handwheel_override_active = false;
+      s_calibration_runtime.handwheel_jog_rpm = 0;
+      control_stop_outputs_selective(false, true);
+    }
+    else
+    {
+      s_calibration_runtime.steering_override_active = false;
+      s_calibration_runtime.steering_jog_rpm = 0;
+      control_stop_outputs_selective(true, handwheel_controller_should_command());
+    }
+
+    /* Keep closed-loop control disabled after calibration jog release.  The
+     * wheel must stay where the technician placed it until calibration is
+     * saved or normal control is explicitly re-enabled. */
   }
   else if (!is_handwheel)
   {
+    int32_t jog_rpm = clamp_int32(rpm, -500, 500);
+    /* MSSC 内部最低转速门限，低于该值电机不动；这里向上抬到能真正转动的幅值。 */
+    if ((jog_rpm > 0) && (jog_rpm < (int32_t)STEERING_POSITION_MIN_RPM))
+    {
+      jog_rpm = (int32_t)STEERING_POSITION_MIN_RPM;
+    }
+    else if ((jog_rpm < 0) && (jog_rpm > -(int32_t)STEERING_POSITION_MIN_RPM))
+    {
+      jog_rpm = -(int32_t)STEERING_POSITION_MIN_RPM;
+    }
+
     control_set_enabled(false);
-    control_stop_outputs();
+    control_stop_outputs_selective(true, handwheel_controller_should_command());
     s_calibration_runtime.steering_override_active = true;
     s_calibration_runtime.handwheel_override_active = false;
-    s_calibration_runtime.steering_jog_rpm = (int16_t)clamp_int32(rpm, -200, 200);
+    s_calibration_runtime.steering_jog_rpm = (int16_t)jog_rpm;
     s_calibration_runtime.handwheel_jog_rpm = 0;
-
-    (void)mssc_steering_controller_stop(&s_handwheel_controller);
+    (void)steering_output_apply((int16_t)jog_rpm, CAN_TRANSPORT_PRIORITY_HIGH, true);
   }
   else
   {
+    int32_t jog_rpm = clamp_int32(rpm, -500, 500);
+    if ((jog_rpm > 0) && (jog_rpm < (int32_t)STEERING_POSITION_MIN_RPM))
+    {
+      jog_rpm = (int32_t)STEERING_POSITION_MIN_RPM;
+    }
+    else if ((jog_rpm < 0) && (jog_rpm > -(int32_t)STEERING_POSITION_MIN_RPM))
+    {
+      jog_rpm = -(int32_t)STEERING_POSITION_MIN_RPM;
+    }
+
     control_set_enabled(false);
-    control_stop_outputs();
+    control_stop_outputs_selective(true, true);
     s_calibration_runtime.handwheel_override_active = true;
     s_calibration_runtime.steering_override_active = false;
-    s_calibration_runtime.handwheel_jog_rpm = (int16_t)clamp_int32(rpm, -200, 200);
+    s_calibration_runtime.handwheel_jog_rpm = (int16_t)jog_rpm;
     s_calibration_runtime.steering_jog_rpm = 0;
-
-    (void)mssc_steering_controller_stop(&s_steer_controller);
   }
 
   (void)reply_printf(
@@ -2494,7 +2918,7 @@ static void handle_set_calibration_point(const char *line)
   char axis_text[32];
   char point_text[32];
   bool is_handwheel = false;
-  int16_t *target_field;
+  int32_t *target_field;
   int32_t source_value;
 
   if (!json_get_string(line, "\"axis\"", axis_text, sizeof(axis_text)) ||
@@ -2523,9 +2947,9 @@ static void handle_set_calibration_point(const char *line)
     return;
   }
 
-  calibration_runtime_update();
+  calibration_runtime_update_axis(is_handwheel);
   source_value = is_handwheel ? s_calibration_runtime.handwheel_estimate : s_calibration_runtime.steering_estimate;
-  *target_field = (int16_t)clamp_int32(source_value, -32768, 32767);
+  *target_field = source_value;
   vehicle_config_set(vehicle_config_get());
 
   (void)reply_printf(
@@ -2655,6 +3079,7 @@ static void handle_help(void)
       "\"get_config\",\"set_config\",\"save_config\",\"load_config\","
       "\"get_status\",\"set_control_enable\",\"set_steer_input\","
       "\"set_remote_mode\",\"set_remote_stop_state\","
+      "\"app_control\",\"usb_control\",\"ros_control\","
       "\"ewm22_send_at\",\"drive_test\",\"steer_test\",\"stop_all\","
       "\"get_capabilities\",\"query_linear_steering\","
       "\"get_calibration\",\"steering_jog\",\"set_calibration_point\","
@@ -2694,6 +3119,14 @@ static void process_line_with_reply_target(const char *line, bool reply_to_remot
   else if (command_is(line, "set_steer_input"))
   {
     handle_set_steer_input(line);
+  }
+  else if (command_is(line, "app_control") ||
+           command_is(line, "usb_control") ||
+           command_is(line, "ros_control") ||
+           command_is(line, "control") ||
+           command_is(line, "joystick"))
+  {
+    handle_app_control_inject(line);
   }
   else if (command_is(line, "set_remote_mode"))
   {
@@ -2769,6 +3202,7 @@ void chassis_app_init(ADC_HandleTypeDef *hadc,
   board_io_init(hadc);
   ewm22_link_init(ewm22_uart);
   control_reset_targets();
+  steering_output_cache_reset();
   memset(&s_calibration_runtime, 0, sizeof(s_calibration_runtime));
   memset(&s_left_pedal_samples, 0, sizeof(s_left_pedal_samples));
   memset(&s_right_pedal_samples, 0, sizeof(s_right_pedal_samples));
@@ -2800,6 +3234,7 @@ void chassis_app_init(ADC_HandleTypeDef *hadc,
 
   s_drive_can_ready = can_transport_start(drive_can, 0U, 14U);
   s_steer_can_ready = can_transport_start(steer_can, 14U, 14U);
+  s_last_can_start_retry_tick_ms = 0U;
   controllers_bind_from_config();
 }
 
@@ -2808,6 +3243,7 @@ void chassis_app_process(void)
   char line[768];
 
   board_io_process();
+  can_start_retry_process();
   can_transport_process();
   drive_feedback_update();
   calibration_runtime_update();

@@ -517,6 +517,8 @@ bool can_transport_start(CAN_HandleTypeDef *hcan, uint32_t filter_bank, uint32_t
     return false;
   }
 
+  (void)HAL_CAN_Stop(hcan);
+
   memset(&slot->state, 0, sizeof(slot->state));
   memset(slot->history, 0, sizeof(slot->history));
   memset(slot->request_queue, 0, sizeof(slot->request_queue));

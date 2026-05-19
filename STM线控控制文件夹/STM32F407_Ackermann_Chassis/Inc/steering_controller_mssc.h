@@ -24,6 +24,7 @@ typedef struct
   uint16_t position_low_word;
   uint8_t position_words_valid_mask;
   uint8_t next_feedback_reg;
+  uint32_t position_high_tick_ms;
   int32_t last_position_raw;
   uint32_t last_position_tick_ms;
 } mssc_steering_controller_t;

@@ -520,7 +520,9 @@ static bool ewm22_link_parse_app_control_json(const char *line)
   if (have_cmd &&
       (ascii_stricmp(cmd, "app_control") != 0) &&
       (ascii_stricmp(cmd, "control") != 0) &&
-      (ascii_stricmp(cmd, "joystick") != 0))
+      (ascii_stricmp(cmd, "joystick") != 0) &&
+      (ascii_stricmp(cmd, "usb_control") != 0) &&
+      (ascii_stricmp(cmd, "ros_control") != 0))
   {
     return false;
   }
@@ -816,6 +818,17 @@ const ewm22_link_state_t *ewm22_link_get_state(void)
   return &s_state;
 }
 
+bool ewm22_link_inject_app_control_json(const char *line)
+{
+  if (!ewm22_link_parse_app_control_json(line))
+  {
+    return false;
+  }
+
+  s_state.remote_source = EWM22_REMOTE_SOURCE_USB_JSON;
+  return true;
+}
+
 const char *ewm22_link_remote_source_name(ewm22_remote_source_t source)
 {
   switch (source)
@@ -824,6 +837,8 @@ const char *ewm22_link_remote_source_name(ewm22_remote_source_t source)
       return "RC_FRAME";
     case EWM22_REMOTE_SOURCE_APP_JSON:
       return "APP_JSON";
+    case EWM22_REMOTE_SOURCE_USB_JSON:
+      return "USB_JSON";
     default:
       return "NONE";
   }

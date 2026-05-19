@@ -69,6 +69,8 @@ let connectingDeviceId = '';
 let incomingTextBuffer = '';
 let writeQueue = [];
 let writeBusy = false;
+let nextWriteLineToken = 1;
+let activeWriteLineToken = 0;
 let sessionAutoConnect = true;
 let discoveryRetryTimer = null;
 let discoveryRequestToken = 0;
@@ -354,6 +356,7 @@ function isBleSupported() {
 function clearWriteQueue() {
   writeQueue = [];
   writeBusy = false;
+  activeWriteLineToken = 0;
 }
 
 function stopDiscoveryQuietly() {
@@ -590,6 +593,24 @@ function handleWriteFailure(error) {
   });
 }
 
+function writeQueueHasLine(lineToken) {
+  return !!lineToken && writeQueue.some((chunk) => chunk.lineToken === lineToken);
+}
+
+function dropQueuedLine(lineToken) {
+  if (!lineToken) {
+    return;
+  }
+
+  writeQueue = writeQueue.filter((chunk) => chunk.lineToken !== lineToken);
+}
+
+function finishActiveLineIfDrained(lineToken) {
+  if (activeWriteLineToken === lineToken && !writeQueueHasLine(lineToken)) {
+    activeWriteLineToken = 0;
+  }
+}
+
 function flushWriteQueue() {
   if (writeBusy || !runtimeState.clientConnected || !runtimeState.notifyReady) {
     return;
@@ -601,6 +622,7 @@ function flushWriteQueue() {
 
   const nextChunk = writeQueue.shift();
   writeBusy = true;
+  activeWriteLineToken = nextChunk.lineToken || 0;
 
   uni.writeBLECharacteristicValue({
     deviceId: runtimeState.deviceId,
@@ -613,6 +635,7 @@ function flushWriteQueue() {
       });
 
       writeBusy = false;
+      finishActiveLineIfDrained(nextChunk.lineToken);
       scheduleFlushWriteQueue(8);
     },
     fail(error) {
@@ -630,20 +653,37 @@ function flushWriteQueue() {
       }
 
       handleWriteFailure(error);
+      dropQueuedLine(nextChunk.lineToken);
+      finishActiveLineIfDrained(nextChunk.lineToken);
       scheduleFlushWriteQueue(BLE_WRITE_RETRY_DELAY_MS);
     }
   });
 }
 
-function enqueueTextLine(text, replacePendingQueue) {
+function enqueueTextLine(text, options) {
+  const settings = typeof options === 'object'
+    ? options
+    : { replacePendingQueue: !!options };
+  const replacePendingQueue = !!settings.replacePendingQueue;
+  const lineToken = nextWriteLineToken++;
+
+  if (nextWriteLineToken > Number.MAX_SAFE_INTEGER - 1000) {
+    nextWriteLineToken = 1;
+  }
+
   if (replacePendingQueue) {
-    writeQueue = [];
+    const protectedLineToken = activeWriteLineToken;
+    writeQueue = writeQueue.filter((chunk) => (
+      protectedLineToken && chunk.lineToken === protectedLineToken
+    ));
   }
 
   splitTextToBuffers(text).forEach((buffer) => {
     writeQueue.push({
       buffer,
-      retryCount: 0
+      retryCount: 0,
+      lineToken,
+      priority: settings.priority || 'command'
     });
   });
 
@@ -1252,7 +1292,10 @@ export function sendTextLine(text, options) {
     };
   }
 
-  enqueueTextLine(String(text || ''), !!(options && options.replacePendingQueue));
+  enqueueTextLine(String(text || ''), {
+    replacePendingQueue: !!(options && options.replacePendingQueue),
+    priority: (options && options.priority) || 'command'
+  });
 
   return {
     ok: true
@@ -1261,7 +1304,8 @@ export function sendTextLine(text, options) {
 
 export function sendControlFrame(frame) {
   return sendTextLine(serializeControlFrame(frame), {
-    replacePendingQueue: true
+    replacePendingQueue: true,
+    priority: 'control'
   });
 }
 

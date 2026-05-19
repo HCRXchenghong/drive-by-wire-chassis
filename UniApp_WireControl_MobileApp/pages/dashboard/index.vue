@@ -331,6 +331,14 @@
                   <text class="info-value">{{ telemetryStatus && telemetryStatus.remoteValid ? '是' : '否' }}</text>
                 </view>
                 <view class="info-row">
+                  <text class="info-label">远程帧计数</text>
+                  <text class="info-value">{{ telemetryStatus ? telemetryStatus.remoteFrameCount : 0 }}</text>
+                </view>
+                <view class="info-row">
+                  <text class="info-label">远程错误计数</text>
+                  <text class="info-value">{{ formatRemoteErrorCount(telemetryStatus) }}</text>
+                </view>
+                <view class="info-row">
                   <text class="info-label">本地挡位输入</text>
                   <text class="info-value">{{ telemetryStatus ? telemetryStatus.localGear : '--' }}</text>
                 </view>
@@ -674,6 +682,25 @@ import { getLatestStatusSnapshot, getLatestStatusTimestamp } from '@/utils/bridg
 const JOYSTICK_RADIUS = 82;
 const GEAR_TRACK_WIDTH = 204;
 const GEAR_KNOB_WIDTH = 62;
+const SERVICE_ACTION_ACTUAL_RPM_THRESHOLD = 60;
+
+function hasUnsafeDriveMotion(status) {
+  const safe = status || {};
+  const leftValid = !!safe.leftActualRpmValid;
+  const rightValid = !!safe.rightActualRpmValid;
+  const leftRpm = Math.abs(Number(safe.leftActualRpm || 0));
+  const rightRpm = Math.abs(Number(safe.rightActualRpm || 0));
+
+  if (leftValid && leftRpm >= SERVICE_ACTION_ACTUAL_RPM_THRESHOLD) {
+    return true;
+  }
+
+  if (rightValid && rightRpm >= SERVICE_ACTION_ACTUAL_RPM_THRESHOLD) {
+    return true;
+  }
+
+  return false;
+}
 
 function clamp(value, minValue, maxValue) {
   if (value < minValue) {
@@ -832,11 +859,11 @@ export default {
       return this.appConfig.driveMaxRpm || 500;
     },
     serviceActionsLocked() {
-      if (this.emergencyStopActive || this.softStopActive) {
-        return this.driveFeedbackValid ? this.vehicleMovingActual : false;
+      if (this.driveFeedbackValid) {
+        return hasUnsafeDriveMotion(this.telemetryStatus);
       }
 
-      return this.vehicleMoving;
+      return this.vehicleMovingActual;
     },
     mechanicalSteeringFeedbackOnline() {
       if (!this.statusOnline || !this.telemetryStatus) {
@@ -894,6 +921,9 @@ export default {
     steeringLockedByFault() {
       return this.outputsLockedByFault && this.faultCode !== 'drive_reply_timeout';
     },
+    driveStopActive() {
+      return this.softStopActive || this.emergencyStopActive || this.hardwareEstopActive;
+    },
     faultCode() {
       return String((this.telemetryStatus && this.telemetryStatus.faultCode) || 'none');
     },
@@ -901,23 +931,11 @@ export default {
       return String((this.telemetryStatus && this.telemetryStatus.faultMessageZh) || '');
     },
     joystickLocked() {
-      return this.softStopActive || this.emergencyStopActive || this.hardwareEstopActive || this.steeringLockedByFault;
+      return this.steeringLockedByFault;
     },
     controlLockText() {
       if (this.steeringLockedByFault) {
         return this.faultMessageZh || '通信或反馈故障已锁停';
-      }
-
-      if (this.hardwareEstopActive) {
-        return '硬件急停已触发';
-      }
-
-      if (this.emergencyStopActive) {
-        return '系统已急停锁定';
-      }
-
-      if (this.softStopActive) {
-        return '系统已进入缓停';
       }
 
       return '';
@@ -1103,8 +1121,8 @@ export default {
         wheelbaseMm: clamp(Number(this.draftConfig.wheelbaseMm || 0), 100, 10000),
         rearTrackMm: clamp(Number(this.draftConfig.rearTrackMm || 0), 100, 10000),
         driveMaxRpm: clamp(Number(this.draftConfig.driveMaxRpm || 0), 50, 5000),
-        steerCanNodeId: clamp(Number(this.draftConfig.steerCanNodeId || 0), 1, 0x7FF),
-        handwheelCanNodeId: clamp(Number(this.draftConfig.handwheelCanNodeId || 0), 1, 0x7FF),
+        steerCanNodeId: clamp(Number(this.draftConfig.steerCanNodeId || 0), 1, 0x7F),
+        handwheelCanNodeId: clamp(Number(this.draftConfig.handwheelCanNodeId || 0), 1, 0x7F),
         leftDriveInverted: !!this.draftConfig.leftDriveInverted,
         rightDriveInverted: !!this.draftConfig.rightDriveInverted,
         hasLinearSteering: !!this.draftConfig.hasLinearSteering && this.linearSteeringSupported,
@@ -1660,7 +1678,9 @@ export default {
         dy = (dy / distance) * JOYSTICK_RADIUS;
       }
 
-      if (this.currentGear === 'N') {
+      if (this.driveStopActive) {
+        dy = 0;
+      } else if (this.currentGear === 'N') {
         dy = 0;
       } else if ((this.currentGear === 'D' || this.currentGear === 'S') && dy > 0) {
         dy = 0;
@@ -1701,7 +1721,7 @@ export default {
         return;
       }
 
-      if (this.joystickLocked || this.currentGear === 'N' || this.currentGear === 'S') {
+      if (this.joystickLocked || this.driveStopActive || this.currentGear === 'N' || this.currentGear === 'S') {
         this.commandOutput.y = 0;
         this.releaseRampActive = false;
         return;
@@ -1769,7 +1789,7 @@ export default {
       const frame = createControlFrame({
         seq: this.controlSeq,
         gear: this.currentGear,
-        throttlePercent: this.commandOutput.y,
+        throttlePercent: this.driveStopActive ? 0 : this.commandOutput.y,
         steerPercent: this.commandOutput.x,
         auxXPercent: 0,
         auxYPercent: 0,
@@ -1890,6 +1910,16 @@ export default {
       return String(value || '').toLowerCase() === 'estop_throttle'
         ? '左急停 / 右单踏板'
         : '左刹车 / 右油门';
+    },
+    formatRemoteErrorCount(status) {
+      if (!status) {
+        return '--';
+      }
+
+      const total = Number(status.remoteCrcErrorCount || 0)
+        + Number(status.remoteParseErrorCount || 0)
+        + Number(status.remoteOverflowErrorCount || 0);
+      return String(total);
     }
   }
 };

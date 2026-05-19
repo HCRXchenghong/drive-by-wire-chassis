@@ -97,10 +97,10 @@
             <view class="jog-row">
               <view
                 class="hold-button"
-                @touchstart.stop.prevent="startJog('STEERING', -60)"
+                @touchstart.stop.prevent="startJog('STEERING', 200)"
                 @touchend.stop.prevent="stopJog('STEERING')"
                 @touchcancel.stop.prevent="stopJog('STEERING')"
-                @mousedown.stop.prevent="startJog('STEERING', -60)"
+                @mousedown.stop.prevent="startJog('STEERING', 200)"
                 @mouseup.stop.prevent="stopJog('STEERING')"
                 @mouseleave.stop.prevent="stopJog('STEERING')"
               >
@@ -108,10 +108,10 @@
               </view>
               <view
                 class="hold-button"
-                @touchstart.stop.prevent="startJog('STEERING', 60)"
+                @touchstart.stop.prevent="startJog('STEERING', -200)"
                 @touchend.stop.prevent="stopJog('STEERING')"
                 @touchcancel.stop.prevent="stopJog('STEERING')"
-                @mousedown.stop.prevent="startJog('STEERING', 60)"
+                @mousedown.stop.prevent="startJog('STEERING', -200)"
                 @mouseup.stop.prevent="stopJog('STEERING')"
                 @mouseleave.stop.prevent="stopJog('STEERING')"
               >
@@ -187,10 +187,10 @@
             <view v-if="linearSteeringSupported" class="jog-row">
               <view
                 class="hold-button hold-button-warn"
-                @touchstart.stop.prevent="startJog('HANDWHEEL', -60)"
+                @touchstart.stop.prevent="startJog('HANDWHEEL', -200)"
                 @touchend.stop.prevent="stopJog('HANDWHEEL')"
                 @touchcancel.stop.prevent="stopJog('HANDWHEEL')"
-                @mousedown.stop.prevent="startJog('HANDWHEEL', -60)"
+                @mousedown.stop.prevent="startJog('HANDWHEEL', -200)"
                 @mouseup.stop.prevent="stopJog('HANDWHEEL')"
                 @mouseleave.stop.prevent="stopJog('HANDWHEEL')"
               >
@@ -198,10 +198,10 @@
               </view>
               <view
                 class="hold-button hold-button-warn"
-                @touchstart.stop.prevent="startJog('HANDWHEEL', 60)"
+                @touchstart.stop.prevent="startJog('HANDWHEEL', 200)"
                 @touchend.stop.prevent="stopJog('HANDWHEEL')"
                 @touchcancel.stop.prevent="stopJog('HANDWHEEL')"
-                @mousedown.stop.prevent="startJog('HANDWHEEL', 60)"
+                @mousedown.stop.prevent="startJog('HANDWHEEL', 200)"
                 @mouseup.stop.prevent="stopJog('HANDWHEEL')"
                 @mouseleave.stop.prevent="stopJog('HANDWHEEL')"
               >
@@ -329,6 +329,26 @@ import {
 import { getBridgeState, sendJsonCommand } from '@/utils/ewm22-ble-bridge';
 import { getLatestStatusSnapshot } from '@/utils/bridge-status';
 
+const SERVICE_ACTION_ACTUAL_RPM_THRESHOLD = 60;
+
+function hasUnsafeDriveMotion(status) {
+  const safe = status || {};
+  const leftValid = !!safe.leftActualRpmValid;
+  const rightValid = !!safe.rightActualRpmValid;
+  const leftRpm = Math.abs(Number(safe.leftActualRpm || 0));
+  const rightRpm = Math.abs(Number(safe.rightActualRpm || 0));
+
+  if (leftValid && leftRpm >= SERVICE_ACTION_ACTUAL_RPM_THRESHOLD) {
+    return true;
+  }
+
+  if (rightValid && rightRpm >= SERVICE_ACTION_ACTUAL_RPM_THRESHOLD) {
+    return true;
+  }
+
+  return false;
+}
+
 export default {
   components: {
     AppSvgIcon
@@ -393,11 +413,11 @@ export default {
       return !!(this.latestStatus && this.latestStatus.softStopActive);
     },
     serviceActionsLocked() {
-      if (this.emergencyStopActive || this.softStopActive) {
-        return this.driveFeedbackValid ? this.vehicleMovingActual : false;
+      if (this.driveFeedbackValid) {
+        return hasUnsafeDriveMotion(this.latestStatus);
       }
 
-      return this.vehicleMoving;
+      return !!(this.latestStatus && this.latestStatus.vehicleMovingActual);
     },
     pedalWizardFinished() {
       return this.pedalWizard.stepIndex >= 10;

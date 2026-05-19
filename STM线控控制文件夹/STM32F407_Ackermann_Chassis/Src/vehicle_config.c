@@ -5,17 +5,20 @@
 #include <stddef.h>
 #include <string.h>
 
-#define VEHICLE_CONFIG_VERSION 0x00040000UL
+#define VEHICLE_CONFIG_VERSION 0x00060000UL
+#define VEHICLE_CONFIG_VERSION_V5 0x00050000UL
+#define VEHICLE_CONFIG_VERSION_V4 0x00040000UL
 #define VEHICLE_CONFIG_VERSION_V3 0x00030000UL
 #define VEHICLE_CONFIG_STORAGE_MAGIC 0x56434647UL
-#define VEHICLE_CONFIG_STORAGE_VERSION 0x00040000UL
+#define VEHICLE_CONFIG_STORAGE_VERSION 0x00060000UL
+#define VEHICLE_CONFIG_STORAGE_VERSION_V5 0x00050000UL
+#define VEHICLE_CONFIG_STORAGE_VERSION_V4 0x00040000UL
 #define VEHICLE_CONFIG_STORAGE_VERSION_V3 0x00030000UL
 #define VEHICLE_CONFIG_FLASH_SECTOR FLASH_SECTOR_11
 #define VEHICLE_CONFIG_FLASH_ADDRESS 0x080E0000UL
 #define VEHICLE_CONFIG_DEFAULT_DRIVE_MAX_RPM 500U
 #define VEHICLE_CONFIG_MIN_DRIVE_MAX_RPM 50U
 #define VEHICLE_CONFIG_MAX_DRIVE_MAX_RPM 5000U
-
 typedef struct
 {
   uint32_t magic;
@@ -23,6 +26,55 @@ typedef struct
   vehicle_config_t config;
   uint32_t checksum;
 } vehicle_config_flash_image_t;
+
+typedef struct
+{
+  uint32_t magic;
+  uint32_t storage_version;
+  vehicle_config_t config;
+  uint32_t checksum;
+} vehicle_config_flash_image_v5_t;
+
+typedef struct
+{
+  uint16_t front_track_mm;
+  uint16_t wheelbase_mm;
+  uint16_t rear_track_mm;
+  uint8_t chassis_type;
+  uint8_t drive_axle;
+  uint8_t drive_controller_type;
+  uint8_t steering_controller_type;
+  uint8_t linear_steering_enabled;
+  uint8_t pedal_config;
+  uint8_t left_drive_inverted;
+  uint8_t right_drive_inverted;
+  uint16_t steer_can_node_id;
+  uint16_t handwheel_can_node_id;
+  uint16_t throttle_raw_min;
+  uint16_t throttle_raw_max;
+  uint16_t brake_raw_min;
+  uint16_t brake_raw_max;
+  int16_t steering_center;
+  int16_t steering_left_10;
+  int16_t steering_right_10;
+  int16_t steering_left_limit;
+  int16_t steering_right_limit;
+  int16_t handwheel_center;
+  int16_t handwheel_left_10;
+  int16_t handwheel_right_10;
+  int16_t handwheel_left_limit;
+  int16_t handwheel_right_limit;
+  uint16_t drive_max_rpm;
+  uint32_t version;
+} vehicle_config_v4_t;
+
+typedef struct
+{
+  uint32_t magic;
+  uint32_t storage_version;
+  vehicle_config_v4_t config;
+  uint32_t checksum;
+} vehicle_config_flash_image_v4_t;
 
 typedef struct
 {
@@ -121,10 +173,10 @@ static void vehicle_config_set_defaults(vehicle_config_t *config)
   config->brake_raw_min = 240U;
   config->brake_raw_max = 3840U;
   config->steering_center = 0;
-  config->steering_left_10 = -100;
-  config->steering_right_10 = 100;
-  config->steering_left_limit = -600;
-  config->steering_right_limit = 600;
+  config->steering_left_10 = 100;
+  config->steering_right_10 = -100;
+  config->steering_left_limit = 600;
+  config->steering_right_limit = -600;
   config->handwheel_center = 0;
   config->handwheel_left_10 = -100;
   config->handwheel_right_10 = 100;
@@ -181,7 +233,7 @@ static void vehicle_config_fix_can_node_id(uint16_t *node_id, uint16_t fallback)
     return;
   }
 
-  if ((*node_id == 0U) || (*node_id > 0x07FFU))
+  if ((*node_id == 0U) || (*node_id > 0x007FU))
   {
     *node_id = fallback;
   }
@@ -208,6 +260,85 @@ static void vehicle_config_fix_drive_max_rpm(uint16_t *drive_max_rpm)
   if (*drive_max_rpm > VEHICLE_CONFIG_MAX_DRIVE_MAX_RPM)
   {
     *drive_max_rpm = VEHICLE_CONFIG_MAX_DRIVE_MAX_RPM;
+  }
+}
+
+static void vehicle_config_swap_i32(int32_t *lhs, int32_t *rhs)
+{
+  int32_t tmp;
+
+  if ((lhs == NULL) || (rhs == NULL))
+  {
+    return;
+  }
+
+  tmp = *lhs;
+  *lhs = *rhs;
+  *rhs = tmp;
+}
+
+static bool vehicle_config_steering_uses_legacy_polarity(const vehicle_config_t *config)
+{
+  int32_t center_value;
+
+  if (config == NULL)
+  {
+    return false;
+  }
+
+  center_value = config->steering_center;
+  return (config->steering_left_10 < center_value) &&
+         (config->steering_left_limit < center_value) &&
+         (config->steering_right_10 > center_value) &&
+         (config->steering_right_limit > center_value);
+}
+
+static void vehicle_config_migrate_steering_polarity(vehicle_config_t *config)
+{
+  if (!vehicle_config_steering_uses_legacy_polarity(config))
+  {
+    return;
+  }
+
+  vehicle_config_swap_i32(&config->steering_left_10, &config->steering_right_10);
+  vehicle_config_swap_i32(&config->steering_left_limit, &config->steering_right_limit);
+}
+
+static bool vehicle_config_same_center_side(int32_t center_value, int32_t lhs, int32_t rhs)
+{
+  int32_t lhs_delta = (int32_t)lhs - (int32_t)center_value;
+  int32_t rhs_delta = (int32_t)rhs - (int32_t)center_value;
+
+  if ((lhs_delta == 0) || (rhs_delta == 0))
+  {
+    return false;
+  }
+
+  return ((lhs_delta < 0) && (rhs_delta < 0)) ||
+         ((lhs_delta > 0) && (rhs_delta > 0));
+}
+
+static void vehicle_config_fix_axis_limits(int32_t center_value,
+                                           int32_t left_10_value,
+                                           int32_t right_10_value,
+                                           int32_t *left_limit,
+                                           int32_t *right_limit)
+{
+  int32_t tmp;
+
+  if ((left_limit == NULL) || (right_limit == NULL))
+  {
+    return;
+  }
+
+  if (!vehicle_config_same_center_side(center_value, left_10_value, *left_limit) &&
+      vehicle_config_same_center_side(center_value, left_10_value, *right_limit) &&
+      !vehicle_config_same_center_side(center_value, right_10_value, *right_limit) &&
+      vehicle_config_same_center_side(center_value, right_10_value, *left_limit))
+  {
+    tmp = *left_limit;
+    *left_limit = *right_limit;
+    *right_limit = tmp;
   }
 }
 
@@ -263,6 +394,17 @@ static void vehicle_config_sanitize(vehicle_config_t *config)
   vehicle_config_fix_u16_range(&config->throttle_raw_min, &config->throttle_raw_max);
   vehicle_config_fix_u16_range(&config->brake_raw_min, &config->brake_raw_max);
   vehicle_config_fix_drive_max_rpm(&config->drive_max_rpm);
+  vehicle_config_migrate_steering_polarity(config);
+  vehicle_config_fix_axis_limits(config->steering_center,
+                                 config->steering_left_10,
+                                 config->steering_right_10,
+                                 &config->steering_left_limit,
+                                 &config->steering_right_limit);
+  vehicle_config_fix_axis_limits(config->handwheel_center,
+                                 config->handwheel_left_10,
+                                 config->handwheel_right_10,
+                                 &config->handwheel_left_limit,
+                                 &config->handwheel_right_limit);
 
   config->version = VEHICLE_CONFIG_VERSION;
 }
@@ -289,6 +431,50 @@ static bool vehicle_config_validate_image(const vehicle_config_flash_image_t *im
   return (expected_checksum == image->checksum);
 }
 
+static bool vehicle_config_validate_image_v5(const vehicle_config_flash_image_v5_t *image)
+{
+  uint32_t expected_checksum;
+
+  if (image == NULL)
+  {
+    return false;
+  }
+
+  if ((image->magic != VEHICLE_CONFIG_STORAGE_MAGIC) ||
+      (image->storage_version != VEHICLE_CONFIG_STORAGE_VERSION_V5) ||
+      (image->config.version != VEHICLE_CONFIG_VERSION_V5))
+  {
+    return false;
+  }
+
+  expected_checksum =
+      vehicle_config_checksum_bytes(image, offsetof(vehicle_config_flash_image_v5_t, checksum));
+
+  return (expected_checksum == image->checksum);
+}
+
+static bool vehicle_config_validate_image_v4(const vehicle_config_flash_image_v4_t *image)
+{
+  uint32_t expected_checksum;
+
+  if (image == NULL)
+  {
+    return false;
+  }
+
+  if ((image->magic != VEHICLE_CONFIG_STORAGE_MAGIC) ||
+      (image->storage_version != VEHICLE_CONFIG_STORAGE_VERSION_V4) ||
+      (image->config.version != VEHICLE_CONFIG_VERSION_V4))
+  {
+    return false;
+  }
+
+  expected_checksum =
+      vehicle_config_checksum_bytes(image, offsetof(vehicle_config_flash_image_v4_t, checksum));
+
+  return (expected_checksum == image->checksum);
+}
+
 static bool vehicle_config_validate_image_v3(const vehicle_config_flash_image_v3_t *image)
 {
   uint32_t expected_checksum;
@@ -309,6 +495,84 @@ static bool vehicle_config_validate_image_v3(const vehicle_config_flash_image_v3
       vehicle_config_checksum_bytes(image, offsetof(vehicle_config_flash_image_v3_t, checksum));
 
   return (expected_checksum == image->checksum);
+}
+
+static void vehicle_config_import_v5(vehicle_config_t *dest, const vehicle_config_t *src)
+{
+  if ((dest == NULL) || (src == NULL))
+  {
+    return;
+  }
+
+  vehicle_config_set_defaults(dest);
+  dest->front_track_mm = src->front_track_mm;
+  dest->wheelbase_mm = src->wheelbase_mm;
+  dest->rear_track_mm = src->rear_track_mm;
+  dest->chassis_type = src->chassis_type;
+  dest->drive_axle = src->drive_axle;
+  dest->drive_controller_type = src->drive_controller_type;
+  dest->steering_controller_type = src->steering_controller_type;
+  dest->linear_steering_enabled = src->linear_steering_enabled;
+  dest->pedal_config = src->pedal_config;
+  dest->left_drive_inverted = src->left_drive_inverted;
+  dest->right_drive_inverted = src->right_drive_inverted;
+  dest->steer_can_node_id = src->steer_can_node_id;
+  dest->handwheel_can_node_id = src->handwheel_can_node_id;
+  dest->throttle_raw_min = src->throttle_raw_min;
+  dest->throttle_raw_max = src->throttle_raw_max;
+  dest->brake_raw_min = src->brake_raw_min;
+  dest->brake_raw_max = src->brake_raw_max;
+  dest->steering_center = src->steering_center;
+  dest->steering_left_10 = src->steering_left_10;
+  dest->steering_right_10 = src->steering_right_10;
+  dest->steering_left_limit = src->steering_left_limit;
+  dest->steering_right_limit = src->steering_right_limit;
+  dest->handwheel_center = src->handwheel_center;
+  dest->handwheel_left_10 = src->handwheel_left_10;
+  dest->handwheel_right_10 = src->handwheel_right_10;
+  dest->handwheel_left_limit = src->handwheel_left_limit;
+  dest->handwheel_right_limit = src->handwheel_right_limit;
+  dest->drive_max_rpm = src->drive_max_rpm;
+  dest->version = VEHICLE_CONFIG_VERSION;
+}
+
+static void vehicle_config_import_v4(vehicle_config_t *dest, const vehicle_config_v4_t *src)
+{
+  if ((dest == NULL) || (src == NULL))
+  {
+    return;
+  }
+
+  vehicle_config_set_defaults(dest);
+  dest->front_track_mm = src->front_track_mm;
+  dest->wheelbase_mm = src->wheelbase_mm;
+  dest->rear_track_mm = src->rear_track_mm;
+  dest->chassis_type = src->chassis_type;
+  dest->drive_axle = src->drive_axle;
+  dest->drive_controller_type = src->drive_controller_type;
+  dest->steering_controller_type = src->steering_controller_type;
+  dest->linear_steering_enabled = src->linear_steering_enabled;
+  dest->pedal_config = src->pedal_config;
+  dest->left_drive_inverted = src->left_drive_inverted;
+  dest->right_drive_inverted = src->right_drive_inverted;
+  dest->steer_can_node_id = src->steer_can_node_id;
+  dest->handwheel_can_node_id = src->handwheel_can_node_id;
+  dest->throttle_raw_min = src->throttle_raw_min;
+  dest->throttle_raw_max = src->throttle_raw_max;
+  dest->brake_raw_min = src->brake_raw_min;
+  dest->brake_raw_max = src->brake_raw_max;
+  dest->steering_center = src->steering_center;
+  dest->steering_left_10 = src->steering_left_10;
+  dest->steering_right_10 = src->steering_right_10;
+  dest->steering_left_limit = src->steering_left_limit;
+  dest->steering_right_limit = src->steering_right_limit;
+  dest->handwheel_center = src->handwheel_center;
+  dest->handwheel_left_10 = src->handwheel_left_10;
+  dest->handwheel_right_10 = src->handwheel_right_10;
+  dest->handwheel_left_limit = src->handwheel_left_limit;
+  dest->handwheel_right_limit = src->handwheel_right_limit;
+  dest->drive_max_rpm = src->drive_max_rpm;
+  dest->version = VEHICLE_CONFIG_VERSION;
 }
 
 static void vehicle_config_import_v3(vehicle_config_t *dest, const vehicle_config_v3_t *src)
@@ -437,11 +701,29 @@ bool vehicle_config_load(void)
 {
   const vehicle_config_flash_image_t *image =
       (const vehicle_config_flash_image_t *)(uintptr_t)VEHICLE_CONFIG_FLASH_ADDRESS;
+  const vehicle_config_flash_image_v5_t *image_v5 =
+      (const vehicle_config_flash_image_v5_t *)(uintptr_t)VEHICLE_CONFIG_FLASH_ADDRESS;
+  const vehicle_config_flash_image_v4_t *image_v4 =
+      (const vehicle_config_flash_image_v4_t *)(uintptr_t)VEHICLE_CONFIG_FLASH_ADDRESS;
   const vehicle_config_flash_image_v3_t *image_v3 =
       (const vehicle_config_flash_image_v3_t *)(uintptr_t)VEHICLE_CONFIG_FLASH_ADDRESS;
 
   if (!vehicle_config_validate_image(image))
   {
+    if (vehicle_config_validate_image_v5(image_v5))
+    {
+      vehicle_config_import_v5(&g_vehicle_config, &image_v5->config);
+      vehicle_config_sanitize(&g_vehicle_config);
+      return true;
+    }
+
+    if (vehicle_config_validate_image_v4(image_v4))
+    {
+      vehicle_config_import_v4(&g_vehicle_config, &image_v4->config);
+      vehicle_config_sanitize(&g_vehicle_config);
+      return true;
+    }
+
     if (!vehicle_config_validate_image_v3(image_v3))
     {
       return false;
@@ -505,12 +787,6 @@ bool vehicle_config_parse_drive_mode(const char *text, drive_mode_t *mode)
   if (ascii_stricmp(text, "RWD") == 0)
   {
     *mode = DRIVE_MODE_RWD;
-    return true;
-  }
-
-  if ((ascii_stricmp(text, "AWD") == 0) || (ascii_stricmp(text, "4WD") == 0))
-  {
-    *mode = DRIVE_MODE_AWD;
     return true;
   }
 

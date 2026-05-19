@@ -24,14 +24,16 @@
 
 当前 GitHub 仓库的正式发布版本是：
 
-- `v1.0.0`
+- `v2.0.0`
 
-这个 `v1.0.0` 不是早期空壳版本，而是当前可以烧录和现场联调的完整基线，已经包含：
+这个 `v2.0.0` 是按现场联调记录推演出的 CAN 自恢复基线，已经包含：
 
 - `MSSD` 左右驱动轮目标转速下发与真实速度回读。
 - `drive_max_rpm` 最大驱动输出配置、保存、回读和 App 显示。
 - CAN 事务门控、故障锁停、自动恢复和中文故障状态回传。
+- CAN 启动失败后的 500 ms 自动重试；每次重试前先停止 CAN，再重新配置滤波器和启动通知。
 - 机械转向位置反馈闭环与线性方向盘检测。
+- 机械转向闭环固定最大输出 `1000 RPM`，摇杆边界使用 95% 限位，校准点动松手不自动回中。
 - 本地踏板、本地挡位、App 急停 / 缓停、本地硬件急停。
 - 当前现场接线版本的 `PB11` 硬件急停高电平有效逻辑。
 
@@ -43,10 +45,10 @@
 当前 `hex` 文件 SHA256：
 
 ```text
-41885C5FD3E7C1A75657BA0B800DF21C4FDB85B3249CF93B62BDEEC74E992024
+2F600D6269E622A038F6BD00D5AD2160394A432040A5DED9E98FA7C2F2A0A55A
 ```
 
-说明：历史开发过程中曾经出现过 `v1.0.1 / v1.0.2 / v2.0.1` 这些本地或旧远端标签名，但当前 GitHub 发布以 `v1.0.0` 为准。
+说明：`v2.0.0` 是从现场聊天记录和当前工程状态反推重建的版本；`v2.0.1` 在它之后新增了最大转向输出 RPM 的 App/Flash 可配置链路。
 
 ---
 
@@ -321,6 +323,8 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 - `steer_can_node_id`
 - `handwheel_can_node_id`
 
+当前 App 与 F407 运行时保存的是 `chassis_type + drive_axle`，即 `ACKERMANN + FWD/RWD` 或 `DIFF`。代码里的 `DRIVE_MODE_AWD` 枚举属于历史/预留项，当前 App 没有 AWD 选择，`set_config` 也不再接受 `drive_mode:"AWD"` 作为可配置运行模式。
+
 ### 5.2 Flash 保存
 
 配置不是只存 RAM，也不是伪保存。
@@ -344,13 +348,15 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 
 当前存储版本：
 
-- `VEHICLE_CONFIG_VERSION = 0x00040000`
-- `VEHICLE_CONFIG_STORAGE_VERSION = 0x00040000`
+- `VEHICLE_CONFIG_VERSION = 0x00060000`
+- `VEHICLE_CONFIG_STORAGE_VERSION = 0x00060000`
 
 并且当前已经兼容：
 
+- 自动识别并导入 `0x00050000` / `0x00040000` 版本配置结构
 - 自动识别并导入 `v1.0.1` 使用的 `0x00030000` 版本配置结构
 - 在旧配置里没有 `drive_max_rpm` 字段时，为其补上默认值 `500 RPM`
+- `0x00040000` 及更旧配置里的转向/方向盘标定值曾按 `int16_t` 保存，升级后会导入为 `int32_t`，但已经被旧版本截断的真实脉冲值无法自动恢复，需要现场重新标定。
 
 ### 5.3 节点号可配置化
 
@@ -370,6 +376,7 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 必须诚实说明：
 
 - 当前驱动轮控制器绑定用的 `DRIVE_CAN_NODE_ID` 仍是固件内固定值 `1`。
+- `MSSC` 节点号按手册低 7 位生效，App 和固件都限制为 `1 ~ 127`。
 - 用户这次明确要求的是把 `STEER_CAN_NODE_ID` 和 `HANDWHEEL_CAN_NODE_ID` 做成可配置参数，这一项已经完成。
 - 如果后续你也希望驱动轮控制器节点号可配置，可以再按同样模式把 `drive_can_node_id` 也加进 `vehicle_config_t`。
 
@@ -402,6 +409,13 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 - 它会真实影响本地 / 远程驱动目标转速换算上限
 - 下次上电后仍然保持
 
+转向时的左右驱动轮微差速也使用保存后的车身几何：
+
+- `wheelbase_mm` 用于把真实转向角换算成曲率。
+- `drive_axle = FWD` 时使用 `front_track_mm` 计算左右轮速差。
+- `drive_axle = RWD` 时使用 `rear_track_mm` 计算左右轮速差。
+- Ackermann 模式下微差速最大限制为 `35%`，避免左右轮速差过大。
+
 ### 5.5 CAN 事务门控
 
 当前固件里的 `can_transport` 不再是“固定周期盲发 + 被动收包”的模型，而是改成了真实的事务调度器。
@@ -416,6 +430,7 @@ powershell -ExecutionPolicy Bypass -File .\调试脚本\mssc_steering_can.ps1 -P
 3. 写命令虽然不等待协议 ACK，但也必须占用同一个发送窗口。
 4. 每次发送后都保留 `10 ms` 静默间隔，避免读写交错顶在一起。
 5. 机械转向和线性方向盘如果共用同一条 `CAN2`，它们天然会共用同一个事务调度槽位，不会各发各的。
+6. 未启用、未点动、未检测到反馈的线性方向盘节点不会被普通 stop / 故障保护 / 转向测试超时路径主动下发命令，避免未接方向盘时占用 `CAN2` 事务窗口。
 
 这样做的目的不是“把系统改慢”，而是为了避免之前那种典型风险：
 
@@ -1051,7 +1066,12 @@ App 现在已经按这些真实字段显示状态，而不是本地乱猜。
 - 机械转向 `MSSC` 节点号：`1`
 - 线性方向盘 `MSSC` 节点号：`2`
 
-但现在这两个号已经可在 App 配置页里改。
+但现在这两个号已经可在 App 配置页里改，合法范围为 `1 ~ 127`。
+
+标定注意：
+
+- `MSSC` 位置反馈由寄存器 `0x0013` 高字和 `0x0014` 低字拼成 signed 32-bit 脉冲值。
+- 机械转向和线性方向盘的 center / left_10 / right_10 / limit 标定值都按 `int32_t` 保存，不再按 16 位裁剪。
 
 ### 9.8 USB 调试
 
