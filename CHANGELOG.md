@@ -2,6 +2,35 @@
 
 本项目从 `v1.0.0` 开始使用正式版本标签管理。
 
+## v2.1.0
+
+发布时间：2026-05-24
+
+### 新增
+
+- 新增 ROS2 Humble 上位机桥接包：`ros2_ws/src/drive_by_wire_chassis_bridge`。
+- 新增 `/cmd_vel` 控制输入，消息类型为 `geometry_msgs/msg/Twist`。
+  - `linear.x` 表示车辆前后速度，单位 `m/s`。
+  - `angular.z` 表示车辆转向角速度，单位 `rad/s`。
+- 新增 `/vehicle_status` 底盘反馈话题，消息类型为 `drive_by_wire_chassis_bridge/msg/VehicleStatus`。
+- `VehicleStatus` 包含档位、控制权、远程接管状态、软停/急停、CAN 故障、左右轮目标 RPM、左右轮反馈 RPM、估算线速度、转向目标/反馈、BLE 状态、通信计数和最近一次 ROS 控制命令。
+- 新增 STM32 USB CDC JSON 桥接节点 `cmd_vel_usb_bridge`。
+- 新增 ROS2 launch 文件 `cmd_vel_usb_bridge.launch.py`。
+
+### 控制与反馈换算
+
+- `/cmd_vel` 的 `linear.x` 会按轮径从 `m/s` 转成目标轮速 RPM，再转成 STM32 `throttle` 轴值。
+- 默认轮径为 `0.25 m`，可通过 `wheel_diameter_m` 修改。
+- `/vehicle_status.linear_speed_mps` 会按左右实际反馈 RPM 反算车辆线速度。
+- `left_target_rpm/right_target_rpm` 对应 STM32 目标 RPM。
+- `left_wheel_rpm/right_wheel_rpm` 对应 STM32 实际反馈 RPM。
+
+### 使用环境
+
+- 上位机系统：Ubuntu 22.04。
+- ROS 版本：ROS2 Humble。
+- STM32 连接方式：USB CDC，默认使用 `/dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_2089378D4152-if00`。
+
 ## v2.0.3
 
 发布时间：2026-05-18

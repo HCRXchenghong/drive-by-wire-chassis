@@ -1,0 +1,81 @@
+std_msgs/Header header
+
+bool ok
+string firmware
+string chassis_type
+string drive_axle
+string drive_mode
+float32 drive_max_rpm
+float32 steering_max_rpm
+
+string gear
+string control_owner
+string remote_mode
+bool remote_takeover
+bool local_control_active
+bool vehicle_moving
+bool vehicle_moving_command
+bool vehicle_moving_actual
+bool control_enabled
+bool outputs_locked_by_fault
+bool soft_stop_active
+bool emergency_stop_active
+bool hardware_estop_active
+string fault_code
+string fault_domain
+bool drive_can_fault
+bool steer_can_fault
+bool handwheel_can_fault
+bool can_recovery_active
+bool linear_steering_enabled
+bool linear_steering_detected
+
+float32 throttle_raw
+float32 brake_raw
+float32 left_target_rpm
+float32 right_target_rpm
+float32 left_wheel_rpm
+float32 right_wheel_rpm
+bool left_drive_valid
+bool right_drive_valid
+bool drive_feedback_valid
+float32 linear_speed_mps
+
+int32 steering_input
+int32 steering_rpm_cmd
+int32 steering_target_raw
+int32 steering_target_angle_deg
+int32 steering_actual_angle_deg
+int32 steering_feedback_raw
+bool steering_engaged
+bool steering_feedback_valid
+uint32 steering_feedback_age_ms
+
+bool drive_can_ready
+bool steer_can_ready
+uint32 stm32_tx_count
+uint32 stm32_rx_count
+uint32 steer_can_timeout_count
+uint32 steer_can_queue_depth
+bool steer_can_read_pending
+uint32 steer_can_node_id
+uint32 handwheel_can_node_id
+bool left_drive_inverted
+bool right_drive_inverted
+
+bool remote_valid
+uint32 remote_age_ms
+string remote_source
+uint32 remote_frame_count
+uint32 remote_parse_errors
+uint32 remote_overrun_errors
+bool ble_connected
+
+string last_cmd_gear
+int32 last_cmd_throttle_axis
+int32 last_cmd_steer_axis
+float32 last_cmd_linear_x_mps
+float32 last_cmd_angular_z_radps
+bool cmd_vel_stale
+
+string raw_json

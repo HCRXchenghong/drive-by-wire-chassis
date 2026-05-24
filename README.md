@@ -4,7 +4,7 @@
 
 本项目是一套面向线控底盘的真实联调工程，不是纯 UI 演示，也不是只做单个控制器测试的临时脚本集合。
 
-当前目标是把下面这条链路真正打通：
+当前目标是把下面两条链路真正打通：
 
 1. 手机 `uni-app` 蓝牙 App 作为上位机。
 2. `ATK-BLE04` 作为 `BLE <-> UART` 透传桥，广播名建议统一为 `infinite-robot-001~999`。
@@ -13,6 +13,13 @@
 5. `MSSC` 作为机械转向电机控制器。
 6. 第二个 `MSSC` 作为线性方向盘控制器。
 7. 本地踏板、本地前进/后退挡位、本地硬件急停与手机 App 共同参与控制权仲裁。
+
+同时，`v2.1.0` 新增 ROS2 上位机链路：
+
+1. Ubuntu 22.04 上位机运行 `ROS2 Humble`。
+2. 上位机通过 USB CDC 连接 `STM32F407`，一般枚举为 `/dev/ttyACM0`。
+3. ROS2 节点订阅 `/cmd_vel`，把 `geometry_msgs/msg/Twist` 转成 STM32 USB JSON 控制帧。
+4. ROS2 节点发布 `/vehicle_status`，把 STM32 底盘反馈转成强类型 ROS2 状态话题。
 
 项目当前强调三件事：
 
@@ -24,9 +31,9 @@
 
 当前 GitHub 仓库的正式发布版本是：
 
-- `v1.0.0`
+- `v2.1.0`
 
-这个 `v1.0.0` 不是早期空壳版本，而是当前可以烧录和现场联调的完整基线，已经包含：
+这个 `v2.1.0` 是当前可以烧录、App 联调和 ROS2 Humble 上位机联调的完整基线，已经包含：
 
 - `MSSD` 左右驱动轮目标转速下发与真实速度回读。
 - `drive_max_rpm` 最大驱动输出与 `steering_max_rpm` 最大转向输出配置、保存、回读和 App 显示。
@@ -34,6 +41,9 @@
 - 机械转向位置反馈闭环与线性方向盘检测。
 - 本地踏板、本地挡位、App 急停 / 缓停、本地硬件急停。
 - 当前现场接线版本的 `PB11` 硬件急停高电平有效逻辑。
+- ROS2 Humble 桥接包 `drive_by_wire_chassis_bridge`。
+- `/cmd_vel` 控制输入。
+- `/vehicle_status` 底盘反馈话题。
 
 根目录保留当前可烧录文件：
 
@@ -46,7 +56,317 @@
 4208A4BD965DDE0A9E057CA644A734D9FC8539988E8CEB55B97920C837817D90
 ```
 
-说明：历史开发过程中曾经出现过 `v1.0.1 / v1.0.2 / v2.0.1` 这些本地或旧远端标签名，但当前 GitHub 发布以 `v1.0.0` 为准。
+说明：`v2.1.0` 在 `v2.0.x` 固件和 App 基础上新增 ROS2 Humble 上位机桥接层；STM32 固件仍通过 USB CDC 接收 JSON 命令。
+
+---
+
+## 1.2 ROS2 Humble 上位机快速使用
+
+### 1.2.1 环境要求
+
+ROS2 上位机环境：
+
+- 系统：`Ubuntu 22.04`
+- ROS：`ROS2 Humble`
+- 工作空间：仓库内置 `ros2_ws`
+- 串口：STM32 USB CDC，一般为 `/dev/ttyACM0`
+- 推荐稳定串口路径：
+
+```bash
+/dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_2089378D4152-if00
+```
+
+确认 ROS2 Humble 已安装：
+
+```bash
+source /opt/ros/humble/setup.bash
+ros2 --version
+```
+
+### 1.2.2 编译 ROS2 工作空间
+
+从仓库根目录进入 ROS2 工作空间：
+
+```bash
+cd ros2_ws
+source /opt/ros/humble/setup.bash
+colcon build --packages-select drive_by_wire_chassis_bridge --symlink-install
+source install/setup.bash
+```
+
+确认包和消息接口存在：
+
+```bash
+ros2 pkg executables drive_by_wire_chassis_bridge
+ros2 interface show drive_by_wire_chassis_bridge/msg/VehicleStatus
+```
+
+应该能看到可执行节点：
+
+```text
+drive_by_wire_chassis_bridge cmd_vel_usb_bridge
+```
+
+### 1.2.3 串口权限
+
+STM32 插到 Ubuntu 上位机后，先确认设备：
+
+```bash
+ls -l /dev/ttyACM0
+ls -l /dev/serial/by-id/
+```
+
+如果 `/dev/ttyACM0` 属于 `root:dialout`，当前用户需要加入 `dialout`：
+
+```bash
+sudo usermod -aG dialout $USER
+```
+
+然后注销重新登录，或者重启上位机。临时测试也可以直接给当前串口权限：
+
+```bash
+sudo chmod a+rw /dev/ttyACM0
+```
+
+### 1.2.4 启动 ROS2 桥接节点
+
+推荐启动方式：
+
+```bash
+cd ros2_ws
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 launch drive_by_wire_chassis_bridge cmd_vel_usb_bridge.launch.py
+```
+
+如果串口路径变化，可以手动指定：
+
+```bash
+ros2 launch drive_by_wire_chassis_bridge cmd_vel_usb_bridge.launch.py \
+  port:=/dev/ttyACM0
+```
+
+当前默认参数包括：
+
+```bash
+port:=/dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_2089378D4152-if00
+cmd_vel_topic:=/cmd_vel
+vehicle_status_topic:=/vehicle_status
+vehicle_frame_id:=base_link
+status_poll_rate_hz:=10.0
+wheel_diameter_m:=0.25
+drive_max_rpm:=150.0
+min_drive_rpm:=100.0
+linear_deadband_mps:=0.02
+max_angular_speed_radps:=1.0
+wheelbase_m:=1.72
+max_steering_angle_deg:=30.0
+min_steer_axis:=80
+steer_sign:=1.0
+```
+
+### 1.2.5 `/cmd_vel` 控制说明
+
+桥接节点订阅：
+
+```text
+/cmd_vel
+geometry_msgs/msg/Twist
+```
+
+字段含义：
+
+- `linear.x`：车辆前后速度，单位 `m/s`
+- `angular.z`：车辆转向角速度，单位 `rad/s`
+- 其他字段当前不参与底盘控制
+
+测试发布一个很小的前进命令：
+
+```bash
+ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \
+  "{linear: {x: 0.10, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"
+```
+
+测试转向：
+
+```bash
+ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \
+  "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.20}}"
+```
+
+持续控制时应由导航、遥控或测试节点周期发布 `/cmd_vel`。如果 `/cmd_vel` 超过 `cmd_vel_timeout_sec` 没有更新，桥接节点会自动发送空挡、油门 0、转向 0 的安全帧。
+
+停止命令：
+
+```bash
+ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \
+  "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"
+```
+
+### 1.2.6 `/cmd_vel` 到 STM32 的换算
+
+`linear.x` 是 ROS 标准速度，单位是 `m/s`。STM32 驱动轮控制最终使用 RPM 量级，所以桥接节点会做换算：
+
+```text
+target_wheel_rpm = linear.x / (pi * wheel_diameter_m) * 60
+throttle_axis = target_wheel_rpm / drive_max_rpm * 1000
+```
+
+当前轮子直径按现场实车配置为：
+
+```text
+wheel_diameter_m = 0.25
+```
+
+因此：
+
+```text
+100 RPM 约等于 1.31 m/s
+150 RPM 约等于 1.96 m/s
+200 RPM 约等于 2.62 m/s
+```
+
+相关参数在启动时可改：
+
+```bash
+ros2 launch drive_by_wire_chassis_bridge cmd_vel_usb_bridge.launch.py \
+  wheel_diameter_m:=0.25 \
+  drive_max_rpm:=150.0 \
+  min_drive_rpm:=100.0
+```
+
+说明：
+
+- `wheel_diameter_m`：轮子直径，单位米。
+- `drive_max_rpm`：ROS 输出轴值 `1000` 对应的最大驱动 RPM。
+- `min_drive_rpm`：非零速度命令的最小 RPM 兜底，当前默认 `100`。
+- 默认 `use_status_drive_max_rpm=true`，节点会优先使用 STM32 状态里的 `dmr`。
+
+如果需要完全使用 launch 指定的 `drive_max_rpm`，可以这样启动：
+
+```bash
+ros2 launch drive_by_wire_chassis_bridge cmd_vel_usb_bridge.launch.py \
+  use_status_drive_max_rpm:=false \
+  drive_max_rpm:=300.0
+```
+
+### 1.2.7 `/vehicle_status` 底盘反馈说明
+
+桥接节点发布：
+
+```text
+/vehicle_status
+drive_by_wire_chassis_bridge/msg/VehicleStatus
+```
+
+查看反馈：
+
+```bash
+ros2 topic echo /vehicle_status
+```
+
+查看消息定义：
+
+```bash
+ros2 interface show drive_by_wire_chassis_bridge/msg/VehicleStatus
+```
+
+主要字段：
+
+- `gear`：STM32 当前反馈档位。
+- `control_owner`：当前控制来源，例如 `LOCAL` / `REMOTE`。
+- `remote_mode`：远程模式，例如 `MONITOR` / `TAKEOVER`。
+- `remote_takeover`：ROS/远程是否接管。
+- `control_enabled`：输出是否使能。
+- `outputs_locked_by_fault`：是否因故障锁停。
+- `soft_stop_active`：软停是否触发。
+- `emergency_stop_active`：急停是否触发。
+- `hardware_estop_active`：硬件急停是否触发。
+- `fault_code` / `fault_domain`：故障码和故障域。
+- `drive_can_fault` / `steer_can_fault` / `handwheel_can_fault`：CAN 故障状态。
+- `left_target_rpm` / `right_target_rpm`：STM32 当前左右驱动轮目标 RPM。
+- `left_wheel_rpm` / `right_wheel_rpm`：驱动轮实际反馈 RPM。
+- `linear_speed_mps`：根据左右实际反馈 RPM 和 `wheel_diameter_m` 换算得到的线速度。
+- `steering_target_raw`：转向目标原始值。
+- `steering_feedback_raw`：转向反馈原始值。
+- `steering_target_angle_deg`：转向目标角度。
+- `steering_actual_angle_deg`：转向实际角度。
+- `remote_source`：远程来源，例如 `USB_JSON`。
+- `ble_connected`：BLE 是否连接。
+- `last_cmd_gear`：ROS 节点最近一次下发的档位命令。
+- `last_cmd_throttle_axis`：ROS 节点最近一次下发的油门轴值。
+- `last_cmd_steer_axis`：ROS 节点最近一次下发的转向轴值。
+- `last_cmd_linear_x_mps`：ROS 节点最近一次收到并用于控制的 `linear.x`。
+- `last_cmd_angular_z_radps`：ROS 节点最近一次收到并用于控制的 `angular.z`。
+- `cmd_vel_stale`：当前是否因 `/cmd_vel` 超时而发送中位安全命令。
+- `raw_json`：STM32 原始状态 JSON，方便现场排障。
+
+`linear_speed_mps` 的换算位置在 ROS2 桥接源码：
+
+```text
+ros2_ws/src/drive_by_wire_chassis_bridge/drive_by_wire_chassis_bridge/cmd_vel_usb_bridge.py
+```
+
+换算公式：
+
+```text
+linear_speed_mps = average(left_wheel_rpm, right_wheel_rpm) * pi * wheel_diameter_m / 60
+```
+
+如果反馈档位 `gear == R` 且反馈速度为正，节点会把 `linear_speed_mps` 取负，便于上层按前进为正、后退为负理解。
+
+### 1.2.8 控制权与安全行为
+
+桥接节点启动后会：
+
+1. 打开 STM32 USB CDC 串口。
+2. 发送 `get_status` 获取底盘状态。
+3. 默认发送 `set_remote_mode=TAKEOVER`，让 ROS2 远程接管。
+4. 以 `publish_rate_hz` 周期发送 `ros_control` JSON 帧。
+5. 以 `status_poll_rate_hz` 周期读取 STM32 状态并发布 `/vehicle_status`。
+
+桥接节点退出时会：
+
+1. 发送一帧空挡、油门 0、转向 0。
+2. 默认发送 `set_remote_mode=MONITOR`，把底盘退回监控模式。
+
+如果现场只想先看底盘反馈、不想让 ROS 接管，可以关闭接管：
+
+```bash
+ros2 launch drive_by_wire_chassis_bridge cmd_vel_usb_bridge.launch.py \
+  enable_remote_takeover:=false
+```
+
+### 1.2.9 常见问题
+
+如果启动时报串口权限错误：
+
+```bash
+sudo usermod -aG dialout $USER
+```
+
+如果转向方向和期望相反：
+
+```bash
+ros2 launch drive_by_wire_chassis_bridge cmd_vel_usb_bridge.launch.py \
+  steer_sign:=-1.0
+```
+
+如果 `/vehicle_status` 没有数据：
+
+1. 确认 STM32 已经通过 USB 连接。
+2. 确认串口路径存在。
+3. 确认没有其他程序占用 `/dev/ttyACM0`。
+4. 确认已经 `source ros2_ws/install/setup.bash`。
+
+如果 `/cmd_vel` 发了但车不动：
+
+1. 先看 `/vehicle_status` 里的 `fault_code`、`outputs_locked_by_fault`、`control_enabled`。
+2. 看 `remote_mode` 是否为 `TAKEOVER`。
+3. 看 `last_cmd_gear`、`last_cmd_throttle_axis` 是否已经变化。
+4. 看 `left_target_rpm/right_target_rpm` 是否变化。
+5. 看 `left_wheel_rpm/right_wheel_rpm` 是否有真实反馈。
+6. 注意当前实车后轮低 RPM 可能不会启动，这是电机和控制器门限问题，不是 ROS2 消息单位问题。
 
 ---
 
@@ -66,6 +386,8 @@
   - 旧版 IOC、设计说明等仍可参考的资料。
 - `调试脚本`
   - 保留驱动轮控制器、转向控制器的离线联调脚本；其中 `mssd_dual_wheel_can.ps1`、`mssc_steering_can.ps1`、`usb_can_rear_drive_steering_test.html` 都已经补齐“按回复或超时串行”的 CAN 读事务模型，避免盲发读包把控制器总线拖挂。
+- `ros2_ws/src/drive_by_wire_chassis_bridge`
+  - ROS2 Humble 上位机桥接包，负责 `/cmd_vel` 控制和 `/vehicle_status` 底盘反馈。
 
 当前已经明确不再依赖的内容，应当视为历史残留，不作为主链路的一部分：
 
