@@ -17,6 +17,10 @@ This package subscribes to `geometry_msgs/msg/Twist` on `/cmd_vel` and sends
 It also polls the STM32 status JSON and publishes chassis feedback on
 `/vehicle_status` as `drive_by_wire_chassis_bridge/msg/VehicleStatus`.
 
+Architecture diagram:
+
+- [../../../docs/ros2_humble_architecture.md](../../../docs/ros2_humble_architecture.md)
+
 `linear.x` is converted using the real wheel diameter:
 
 ```text

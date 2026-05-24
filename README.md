@@ -21,6 +21,10 @@
 3. ROS2 节点订阅 `/cmd_vel`，把 `geometry_msgs/msg/Twist` 转成 STM32 USB JSON 控制帧。
 4. ROS2 节点发布 `/vehicle_status`，把 STM32 底盘反馈转成强类型 ROS2 状态话题。
 
+ROS2 层架构图见：
+
+- [docs/ros2_humble_architecture.md](docs/ros2_humble_architecture.md)
+
 项目当前强调三件事：
 
 1. `App` 和 `STM32` 的协议字段、状态机、控制模式要互相对应。
