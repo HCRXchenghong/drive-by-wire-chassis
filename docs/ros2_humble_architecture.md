@@ -35,6 +35,49 @@ drive_by_wire_chassis_bridge/cmd_vel_usb_bridge
 1. 把 ROS2 标准速度话题 `/cmd_vel` 转成 STM32 能理解的 USB JSON 控制帧。
 2. 把 STM32 回读的 JSON 状态转成 ROS2 强类型底盘反馈话题 `/vehicle_status`。
 
+## 全链路分层图
+
+```mermaid
+flowchart TB
+    subgraph Host["Ubuntu 22.04 上位机 / ROS2 Humble"]
+        Nav["导航栈 / 键盘遥控 / 测试脚本"]
+        CmdTopic["/cmd_vel<br/>geometry_msgs/msg/Twist"]
+        BridgeNode["cmd_vel_usb_bridge"]
+        StatusTopic["/vehicle_status<br/>VehicleStatus"]
+        DebugUi["调试终端 / 上位机 UI / 自动驾驶状态机"]
+    end
+
+    subgraph UsbLink["USB CDC 串口链路"]
+        UsbJson["换行分隔 JSON<br/>ros_control / get_status / status_ack"]
+    end
+
+    subgraph Mcu["STM32F407 主控固件"]
+        UsbShell["usb_cdc_shell"]
+        ChassisApp["chassis_app<br/>命令解析 / 状态机 / 安全仲裁"]
+        Config["vehicle_config<br/>App 标定 / Flash 参数"]
+        BoardIo["board_io<br/>踏板 / 挡位 / 硬件急停"]
+        CanTransport["can_transport<br/>CAN 事务门控 / 超时 / 恢复"]
+    end
+
+    subgraph Actuators["底盘执行器"]
+        Drive["MSSD-60EHB_2D<br/>左右后驱轮"]
+        Steer["MSSC<br/>前轮机械转向"]
+        Handwheel["MSSC<br/>线性方向盘反馈"]
+    end
+
+    Nav --> CmdTopic --> BridgeNode
+    BridgeNode --> StatusTopic --> DebugUi
+    BridgeNode <--> UsbJson
+    UsbJson <--> UsbShell
+    UsbShell <--> ChassisApp
+    Config --> ChassisApp
+    BoardIo --> ChassisApp
+    ChassisApp <--> CanTransport
+    CanTransport <--> Drive
+    CanTransport <--> Steer
+    CanTransport <--> Handwheel
+```
+
 ## ROS2 节点内部结构
 
 ```mermaid
@@ -81,6 +124,110 @@ flowchart TB
     USB --> CONTROL
     CONTROL --> CAN
 ```
+
+## STM32 固件内部结构
+
+```mermaid
+flowchart TB
+    subgraph Inputs["输入来源"]
+        UsbRx["USB CDC JSON<br/>App / ROS2 / 调试命令"]
+        UartRx["EWM22 / BLE UART<br/>App 控制帧"]
+        LocalIo["本地 IO<br/>踏板 / 挡位 / 硬件急停"]
+        CanFeedback["CAN 反馈<br/>轮速 / 转向位置 / 方向盘"]
+    end
+
+    subgraph Firmware["STM32F407_Ackermann_Chassis 固件"]
+        UsbShell["usb_cdc_shell<br/>按行接收 / 回复"]
+        CommandDispatch["process_line_with_reply_target<br/>命令分发"]
+        RemoteParser["ewm22_link<br/>app_control / usb_control / ros_control"]
+        ConfigStore["vehicle_config<br/>drive_max_rpm / steering_max_rpm<br/>转向中心与左右极限"]
+        BoardIo["board_io<br/>ADC 踏板 / GPIO 挡位 / 急停"]
+        ControlState["control_state<br/>控制权 / 目标速度 / 转向目标"]
+        Safety["安全仲裁<br/>故障锁停 / 软停 / 急停 / 超时"]
+        MotionCalc["运动解算<br/>后驱左右目标 RPM<br/>App 标定转向目标"]
+        SteerLoop["转向闭环<br/>位置反馈 / 滞回 / 最小 RPM"]
+        StatusReply["reply_status<br/>status_ack / chassis_status"]
+        CanTransport["can_transport<br/>串行读事务 / 写确认 / BUSOFF 恢复"]
+    end
+
+    subgraph Controllers["CAN 控制器"]
+        Mssd["drive_controller_mssd<br/>MSSD-60EHB_2D"]
+        MsscSteer["steering_controller_mssc<br/>前轮 MSSC"]
+        MsscWheel["steering_controller_mssc<br/>方向盘 MSSC"]
+    end
+
+    UsbRx --> UsbShell --> CommandDispatch
+    UartRx --> RemoteParser --> ControlState
+    CommandDispatch --> RemoteParser
+    CommandDispatch --> ConfigStore
+    CommandDispatch --> StatusReply
+    LocalIo --> BoardIo --> Safety
+    ConfigStore --> MotionCalc
+    ConfigStore --> SteerLoop
+    ControlState --> Safety --> MotionCalc
+    MotionCalc --> SteerLoop
+    MotionCalc --> CanTransport
+    SteerLoop --> CanTransport
+    CanTransport <--> Mssd
+    CanTransport <--> MsscSteer
+    CanTransport <--> MsscWheel
+    Mssd --> CanFeedback
+    MsscSteer --> CanFeedback
+    MsscWheel --> CanFeedback
+    CanFeedback --> ControlState
+    CanFeedback --> StatusReply
+    Safety --> StatusReply
+    BoardIo --> StatusReply
+    ConfigStore --> StatusReply
+    StatusReply --> UsbShell
+```
+
+STM32 固件的关键边界：
+
+- `usb_cdc_shell` 只负责 USB CDC 收发和按行组包。
+- `chassis_app` 负责 JSON 命令分发、控制权、安全状态、运动目标和状态回包。
+- `vehicle_config` 保存 App 标定和运行参数，例如 `drive_max_rpm`、`steering_max_rpm`、转向中心点、左极限和右极限。
+- `can_transport` 负责 CAN 事务门控、回复匹配、超时统计和恢复。
+- `drive_controller_mssd` 面向后轮驱动控制器 `MSSD-60EHB_2D`。
+- `steering_controller_mssc` 面向前轮转向控制器和线性方向盘控制器 `MSSC`。
+
+## STM32 命令分发图
+
+```mermaid
+flowchart LR
+    JsonLine["USB / UART JSON 行"] --> Dispatch["命令分发"]
+
+    Dispatch --> StatusCmd["get_status<br/>help"]
+    Dispatch --> ConfigCmd["set_app_config<br/>save_app_config"]
+    Dispatch --> ModeCmd["set_remote_mode<br/>set_control_enable"]
+    Dispatch --> ControlCmd["app_control<br/>usb_control<br/>ros_control"]
+    Dispatch --> TestCmd["drive_test<br/>steer_test<br/>stop_all"]
+    Dispatch --> CalibCmd["steering_jog<br/>calibration / linear steering"]
+
+    StatusCmd --> StatusAck["status_ack / capability_status"]
+    ConfigCmd --> ConfigAck["config_ack"]
+    ModeCmd --> StatusAck
+    ControlCmd --> RemoteFrame["remote frame<br/>gear / throttle / steer"]
+    TestCmd --> DirectCan["直接测试 CAN 输出"]
+    CalibCmd --> ConfigStore["App 标定 / 方向盘校准参数"]
+
+    RemoteFrame --> Safety["安全仲裁"]
+    Safety --> Motion["运动与转向目标"]
+    Motion --> CanOut["CAN 输出"]
+```
+
+ROS2 桥接层正常使用的是：
+
+- `get_status`
+- `set_remote_mode`
+- `ros_control`
+
+调试或现场排障时才会使用：
+
+- `drive_test`
+- `steer_test`
+- `stop_all`
+- `set_app_config`
 
 ## 控制话题 `/cmd_vel`
 
@@ -147,6 +294,29 @@ ros2 launch drive_by_wire_chassis_bridge cmd_vel_usb_bridge.launch.py \
   min_drive_rpm:=100.0
 ```
 
+## 控制换算细节图
+
+```mermaid
+flowchart LR
+    Twist["/cmd_vel<br/>linear.x / angular.z"] --> Split["桥接节点拆分"]
+
+    Split --> Linear["linear.x<br/>m/s"]
+    Linear --> Rpm["target_wheel_rpm<br/>m/s -> RPM"]
+    Rpm --> MinRpm["min_drive_rpm 兜底"]
+    MinRpm --> Throttle["throttle_axis<br/>-1000 ~ 1000"]
+    Throttle --> Gear["gear<br/>D / N / R"]
+
+    Split --> Angular["angular.z<br/>rad/s"]
+    Angular --> SteerNorm["归一化转向请求"]
+    SteerNorm --> MinSteer["min_steer_axis 兜底"]
+    MinSteer --> SteerAxis["steer_axis<br/>-1000 ~ 1000"]
+
+    Gear --> Json["ros_control JSON"]
+    Throttle --> Json
+    SteerAxis --> Json
+    Json --> Stm32["STM32 App 标定坐标系<br/>中心 / 左极限 / 右极限"]
+```
+
 ## 转向换算
 
 `angular.z` 会被转成 STM32 的 `steer` 轴值：
@@ -167,6 +337,36 @@ STM32 端仍然使用 App 标定的转向中心点、左极限和右极限：
 ros2 launch drive_by_wire_chassis_bridge cmd_vel_usb_bridge.launch.py \
   steer_sign:=-1.0
 ```
+
+## 控制权和安全仲裁图
+
+```mermaid
+flowchart TB
+    Cmd["控制命令<br/>App / USB / ROS2"] --> Fresh["远程帧是否新鲜"]
+    Fresh --> Mode{"remote_mode"}
+    Mode -->|"MONITOR"| Local["本地控制优先<br/>踏板 / 挡位"]
+    Mode -->|"TAKEOVER"| Remote["远程接管控制"]
+
+    Local --> Safety
+    Remote --> Safety["安全仲裁"]
+    Board["本地硬件急停"] --> Safety
+    Soft["软停 / 急停 latch"] --> Safety
+    Fault["CAN 故障 / 反馈超时 / 输出锁停"] --> Safety
+    Stale["remote timeout / cmd_vel stale"] --> Safety
+
+    Safety --> Allow{"outputs_allowed"}
+    Allow -->|"false"| Stop["停止输出<br/>drive safety stop<br/>steer neutral"]
+    Allow -->|"true"| Calc["计算目标<br/>左右轮 RPM / 转向目标"]
+    Calc --> Can["CAN 下发"]
+    Stop --> Status["状态回包<br/>fault_code / olf / ssa / esa / hea"]
+    Can --> Status
+```
+
+这个图里需要特别注意：
+
+- ROS2 节点退出时会发送中位控制帧，并把 STM32 切回 `MONITOR`。
+- `/cmd_vel` 超时后，ROS2 节点会继续发送安全中位帧。
+- STM32 端仍然保留本地硬件急停、软停、急停、CAN 故障锁停和远程帧新鲜度判断。
 
 ## 底盘反馈话题 `/vehicle_status`
 
@@ -214,6 +414,40 @@ ros2 interface show drive_by_wire_chassis_bridge/msg/VehicleStatus
 ```text
 linear_speed_mps = average(left_wheel_rpm, right_wheel_rpm) * pi * wheel_diameter_m / 60
 ```
+
+## 底盘反馈链路图
+
+```mermaid
+flowchart LR
+    DriveFb["MSSD 实际轮速<br/>lar / rar"] --> StatusBuilder["STM32 reply_status"]
+    SteerFb["MSSC 转向反馈<br/>sf / sfa / sta / saa"] --> StatusBuilder
+    IoFb["踏板 / 挡位 / 急停 IO<br/>thr / brk / g / hea"] --> StatusBuilder
+    FaultFb["故障与 CAN 状态<br/>fc / fd / dcf / scf / olf"] --> StatusBuilder
+    RemoteFb["远程状态<br/>rm / rto / rs / rv / ra"] --> StatusBuilder
+
+    StatusBuilder --> JsonStatus["status_ack JSON"]
+    JsonStatus --> RosParser["ROS2 状态解析"]
+    RosParser --> VehicleStatus["/vehicle_status<br/>VehicleStatus"]
+
+    VehicleStatus --> Ui["调试 UI / ros2 topic echo"]
+    VehicleStatus --> Autonomy["自动驾驶状态机"]
+    VehicleStatus --> Logger["日志与故障记录"]
+```
+
+STM32 状态字段到 ROS2 字段的核心映射：
+
+| STM32 JSON 字段 | ROS2 `VehicleStatus` 字段 | 含义 |
+| --- | --- | --- |
+| `g` | `gear` | STM32 当前反馈档位 |
+| `rm` | `remote_mode` | `MONITOR` / `TAKEOVER` |
+| `rto` | `remote_takeover` | 远程是否接管 |
+| `fc` / `fd` | `fault_code` / `fault_domain` | 故障码和故障域 |
+| `lr` / `rr` | `left_target_rpm` / `right_target_rpm` | 左右轮目标 RPM |
+| `lar` / `rar` | `left_wheel_rpm` / `right_wheel_rpm` | 左右轮实际反馈 RPM |
+| `str` / `sf` | `steering_target_raw` / `steering_feedback_raw` | 转向目标和反馈原始值 |
+| `sta` / `saa` | `steering_target_angle_deg` / `steering_actual_angle_deg` | 转向目标角和实际角 |
+| `rs` | `remote_source` | 远程来源，例如 `USB_JSON` |
+| `ble_connected` | `ble_connected` | BLE 连接状态 |
 
 ## 控制权和安全行为
 
